@@ -1,0 +1,33 @@
+[project]
+name = "parcelvision-worker"
+version = "0.1.0"
+description = "ParcelVision worker — async NAIP fetch, segmentation, vectorization, PostGIS load"
+requires-python = ">=3.12"
+# Light deps: everything needed for the queue loop, post-processing, DB writes,
+# and the fake test backend — importable without torch. Pins verified 2026-07-22.
+dependencies = [
+    "rq==2.10.0",
+    "redis==8.0.1",
+    "sqlalchemy==2.0.51",
+    "geoalchemy2==0.20.0",
+    "psycopg[binary]==3.3.4",
+    "geopandas==1.1.4",
+    "pyogrio==0.13.0",
+    "shapely==2.1.2",
+    "pyproj==3.7.2",
+    # Same regularization engine geoai.regularize wraps — pure geometry, no ML.
+    "buildingregulariser==0.2.5",
+]
+
+[project.optional-dependencies]
+# The real inference stack. geoai-py pulls torch/torchgeo/transformers — install
+# CPU-only torch first (see Dockerfile) or pip will fetch multi-GB CUDA wheels.
+ml = ["geoai-py==0.41.2"]
+dev = ["pytest==9.1.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["worker"]
