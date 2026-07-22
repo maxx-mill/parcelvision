@@ -1,0 +1,6 @@
+# Force LF everywhere — these files run inside Linux containers.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.tif binary
+*.pth binary

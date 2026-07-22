@@ -1,0 +1,31 @@
+[project]
+name = "parcelvision-api"
+version = "0.1.0"
+description = "ParcelVision API — job submission, status, results, exports"
+requires-python = ">=3.12"
+# Pins verified against PyPI 2026-07-22.
+dependencies = [
+    "fastapi==0.139.2",
+    "uvicorn[standard]==0.51.0",
+    "pydantic-settings==2.14.2",
+    "sqlalchemy==2.0.51",
+    "geoalchemy2==0.20.0",
+    "psycopg[binary]==3.3.4",
+    "redis==8.0.1",
+    "rq==2.10.0",
+    # geopandas + pyogrio power the export formats (pyogrio wheels bundle GDAL,
+    # including the OpenFileGDB write driver) and the seed loader.
+    "geopandas==1.1.4",
+    "pyogrio==0.13.0",
+    "shapely==2.1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "httpx==0.28.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
