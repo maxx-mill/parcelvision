@@ -1,0 +1,33 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+frontend/dist/
+
+# Data / models (large artifacts stay out of git; seed data is the exception)
+data/imagery/
+data/models/
+*.pth
+*.tif
+*.tiff
+!data/seed/**
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

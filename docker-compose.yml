@@ -1,0 +1,70 @@
+name: parcelvision
+
+services:
+  db:
+    image: postgis/postgis:17-3.6
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-parcelvision}
+      POSTGRES_USER: ${POSTGRES_USER:-parcelvision}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-parcelvision-dev-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parcelvision} -d ${POSTGRES_DB:-parcelvision}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./worker
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      # Persist downloaded model weights + NAIP tiles between runs
+      - model_cache:/root/.cache
+      - imagery:/data/imagery
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  model_cache:
+  imagery:

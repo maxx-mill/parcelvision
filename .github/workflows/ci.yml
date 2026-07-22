@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install api + worker (light deps only — ML deps are runtime-only)
+        run: |
+          pip install -r api/requirements.txt -r worker/requirements.txt
+          pip install pytest ruff black mypy
+
+      - name: Ruff
+        run: ruff check api worker tests
+
+      - name: Black
+        run: black --check api worker tests
+
+      - name: Mypy (non-blocking for now)
+        run: mypy api/app worker/worker || true
+
+      - name: Tests
+        env:
+          INFERENCE_BACKEND: fake
+        run: pytest tests -q
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build api image
+        run: docker build ./api -t parcelvision-api:ci
+
+      - name: Build frontend image
+        run: docker build ./frontend -t parcelvision-frontend:ci
+
+      # The worker image bundles torch + geoai (~multi-GB). CI builds only its
+      # slim layer (no ML deps) to prove the Dockerfile is valid without the wait.
+      - name: Build worker image (slim target)
+        run: docker build ./worker --target slim -t parcelvision-worker:ci
