@@ -1,5 +1,5 @@
 // maplibre-gl 6 has no default export
-import { LngLatBounds, Map as MaplibreMap, NavigationControl } from "maplibre-gl";
+import { LngLatBounds, Map as MaplibreMap, NavigationControl, Popup } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 const EMPTY = { type: "FeatureCollection", features: [] };
@@ -83,6 +83,26 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
         type: "line",
         source: "aoi",
         paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [2, 2] },
+      });
+
+      // Click a footprint to inspect it before exporting.
+      map.on("click", "buildings-fill", (e) => {
+        const p = e.features[0]?.properties ?? {};
+        const conf = p.confidence != null ? Number(p.confidence).toFixed(2) : "—";
+        const area = p.area_sqm != null ? `${Number(p.area_sqm).toLocaleString()} m²` : "—";
+        new Popup({ closeButton: false, maxWidth: "220px" })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="bldg-popup"><strong>Detected building</strong>` +
+              `<br/>confidence ${conf} · ${area}</div>`
+          )
+          .addTo(map);
+      });
+      map.on("mouseenter", "buildings-fill", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "buildings-fill", () => {
+        map.getCanvas().style.cursor = "";
       });
       readyRef.current = true;
     });
