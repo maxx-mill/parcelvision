@@ -2,13 +2,15 @@ name: parcelvision
 
 services:
   db:
-    image: postgis/postgis:17-3.6
+    image: postgis/postgis:18-3.6
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-parcelvision}
       POSTGRES_USER: ${POSTGRES_USER:-parcelvision}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-parcelvision-dev-only}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PG 18 images keep data in a version subdir under /var/lib/postgresql;
+      # mounting the old /var/lib/postgresql/data path breaks startup.
+      - pgdata:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:

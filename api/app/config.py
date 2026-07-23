@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,12 @@ class Settings(BaseSettings):
     naip_year: int | None = None
 
     frontend_origin: str = "http://localhost:3000"
+
+    @field_validator("naip_year", mode="before")
+    @classmethod
+    def _blank_env_is_none(cls, v: object) -> object:
+        # .env ships `NAIP_YEAR=` (unset); pydantic won't parse "" as int|None.
+        return None if v == "" else v
 
     @property
     def database_url(self) -> str:
