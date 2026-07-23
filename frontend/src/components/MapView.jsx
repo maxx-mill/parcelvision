@@ -1,4 +1,5 @@
-import maplibregl from "maplibre-gl";
+// maplibre-gl 6 has no default export
+import { LngLatBounds, Map as MaplibreMap, NavigationControl } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 const EMPTY = { type: "FeatureCollection", features: [] };
@@ -54,14 +55,14 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
   const readyRef = useRef(false);
 
   useEffect(() => {
-    const map = new maplibregl.Map({
+    const map = new MaplibreMap({
       container: containerRef.current,
       style: BASE_STYLE,
       center: [-90.32, 38.64], // St. Louis County
       zoom: 12,
       attributionControl: { compact: true },
     });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
       map.addSource("aoi", { type: "geojson", data: EMPTY });
       map.addSource("buildings", { type: "geojson", data: EMPTY });
@@ -112,7 +113,7 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
     whenReady(readyRef, map, () => {
       map.getSource("buildings").setData(buildings ?? EMPTY);
       if (buildings?.features?.length) {
-        const bounds = new maplibregl.LngLatBounds();
+        const bounds = new LngLatBounds();
         for (const f of buildings.features) {
           const rings = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
           for (const ring of rings) for (const pt of ring[0]) bounds.extend(pt);
