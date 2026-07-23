@@ -51,6 +51,8 @@ services:
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
+      # geoai's tile downloads render tqdm bars; in container logs that's noise
+      TQDM_DISABLE: "1"
     volumes:
       # Persist downloaded model weights + NAIP tiles between runs
       - model_cache:/root/.cache

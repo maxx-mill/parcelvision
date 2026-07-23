@@ -24,6 +24,9 @@ RETRY_DELAY_S = 15
 def fetch_imagery(bbox: list[float], workdir: Path, year: int | None = None) -> list[Path]:
     import geoai  # heavy import (geoai -> rioxarray/planetary_computer); worker-full image only
 
+    # TODO(ch2): query STAC for the newest acquisition year first and pass
+    # year= to download_naip — currently all vintages download (~480 MB each)
+    # before _newest_year_only discards the stale ones.
     tiles: list[str] = []
     for attempt in range(1, FETCH_ATTEMPTS + 1):
         try:
