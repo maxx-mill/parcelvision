@@ -20,3 +20,21 @@ def get_redis() -> redis.Redis:
 def enqueue_extraction(job_id: str) -> None:
     q = Queue(QUEUE_NAME, connection=get_redis())
     q.enqueue(EXTRACTION_FUNC, job_id, job_timeout=JOB_TIMEOUT_S, job_id=job_id)
+
+
+def cancel_extraction(job_id: str, running: bool) -> None:
+    """Best-effort RQ-side cancellation; the DB row is the source of truth.
+    Queued jobs are pulled from the queue; running ones get their work horse
+    stopped (the DB status the API writes afterwards survives the kill)."""
+    import rq.command
+    import rq.exceptions
+    import rq.job
+
+    conn = get_redis()
+    try:
+        if running:
+            rq.command.send_stop_job_command(conn, job_id)
+        else:
+            rq.job.Job.fetch(job_id, connection=conn).cancel()
+    except (rq.exceptions.NoSuchJobError, rq.exceptions.InvalidJobOperation):
+        pass  # already gone or finished between our check and the command

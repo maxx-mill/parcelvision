@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..config import Settings, get_settings
 from ..db import get_session
-from ..models import Building, Job
-from ..queue import enqueue_extraction
+from ..models import TERMINAL_STATUSES, Building, Job
+from ..queue import cancel_extraction, enqueue_extraction
 from ..schemas import JobCreate, JobOut, bbox_area_km2
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -63,6 +63,19 @@ def _get_job_or_404(session: Session, job_id: uuid.UUID) -> Job:
 @router.get("/{job_id}", response_model=JobOut)
 def get_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> Job:
     return _get_job_or_404(session, job_id)
+
+
+@router.delete("/{job_id}", response_model=JobOut)
+def cancel_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> Job:
+    """Cancel a queued or running job. Terminal jobs are left untouched (409)."""
+    job = _get_job_or_404(session, job_id)
+    if job.status in TERMINAL_STATUSES:
+        raise HTTPException(status_code=409, detail=f"job already {job.status}")
+    cancel_extraction(str(job_id), running=job.status != "queued")
+    job.status = "canceled"
+    job.error = None
+    session.commit()
+    return job
 
 
 @router.get("/{job_id}/buildings")

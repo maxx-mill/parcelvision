@@ -25,8 +25,9 @@ JOB_STATUSES = (
     "writing_db",
     "done",
     "failed",
+    "canceled",
 )
-TERMINAL_STATUSES = {"done", "failed"}
+TERMINAL_STATUSES = {"done", "failed", "canceled"}
 
 
 class Base(DeclarativeBase):

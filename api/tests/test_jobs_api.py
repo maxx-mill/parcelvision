@@ -23,6 +23,7 @@ def client(monkeypatch, _no_db_init):
     # manager skips startup only if we don't use `with` — be explicit instead.
     with TestClient(app, raise_server_exceptions=True) as c:
         c.enqueued = enqueued  # type: ignore[attr-defined]
+        c.app_session = session  # type: ignore[attr-defined]
         yield c
     app.dependency_overrides.clear()
 
@@ -57,3 +58,36 @@ def test_create_job_rejects_oversized_bbox(client):
 def test_export_rejects_unknown_format(client):
     resp = client.get("/api/jobs/00000000-0000-0000-0000-000000000000/export?format=dwg")
     assert resp.status_code == 400
+
+
+def _job(status: str):
+    import uuid
+    from datetime import UTC, datetime
+
+    from app.models import Job
+
+    return Job(
+        id=uuid.uuid4(), status=status, bbox=STL_BBOX, backend="local_cpu",
+        is_seed=False, created_at=datetime.now(UTC),
+    )
+
+
+def test_cancel_running_job(client, monkeypatch):
+    canceled: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        jobs_module, "cancel_extraction", lambda jid, running: canceled.append((jid, running))
+    )
+    job = _job("running_inference")
+    client.app_session.get.return_value = job
+    resp = client.delete(f"/api/jobs/{job.id}")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "canceled"
+    assert canceled == [(str(job.id), True)]
+
+
+def test_cancel_terminal_job_conflicts(client, monkeypatch):
+    monkeypatch.setattr(jobs_module, "cancel_extraction", lambda *a, **k: 1 / 0)
+    job = _job("done")
+    client.app_session.get.return_value = job
+    resp = client.delete(f"/api/jobs/{job.id}")
+    assert resp.status_code == 409

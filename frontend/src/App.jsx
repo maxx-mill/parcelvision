@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listJobs } from "./api.js";
 import MapView from "./components/MapView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
@@ -9,7 +9,22 @@ export default function App() {
   const [aoi, setAoi] = useState(null);
   const [basemap, setBasemap] = useState("imagery");
   const [demoError, setDemoError] = useState(null);
-  const { job, buildings, error, submit, watch, reset } = useJob();
+  const [recentJobs, setRecentJobs] = useState([]);
+  const { job, buildings, error, submit, watch, cancel, reset } = useJob();
+
+  // Refresh history when the active job settles (and on load).
+  const jobStatus = job?.status;
+  useEffect(() => {
+    listJobs().then(setRecentJobs).catch(() => {});
+  }, [jobStatus]);
+
+  const onSelectJob = useCallback(
+    (j) => {
+      setAoi(j.bbox);
+      watch(j);
+    },
+    [watch]
+  );
 
   const onBBoxDrawn = useCallback((bbox) => {
     setAoi(bbox);
@@ -50,6 +65,9 @@ export default function App() {
         buildings={buildings}
         error={error ?? demoError}
         onExtract={onExtract}
+        onCancel={cancel}
+        recentJobs={recentJobs}
+        onSelectJob={onSelectJob}
         onLoadDemo={onLoadDemo}
         basemap={basemap}
         onBasemap={setBasemap}

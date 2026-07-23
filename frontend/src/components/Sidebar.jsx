@@ -21,6 +21,7 @@ function bboxAreaKm2([minLon, minLat, maxLon, maxLat]) {
 }
 
 function StageList({ status }) {
+  if (status === "canceled") return <p className="meta muted">Canceled.</p>;
   const idx = STAGES.findIndex(([key]) => key === status);
   const doneAll = status === "done";
   return (
@@ -38,6 +39,34 @@ function StageList({ status }) {
   );
 }
 
+function RecentJobs({ jobs, activeId, onSelect }) {
+  if (!jobs.length) return null;
+  return (
+    <section>
+      <h2>History</h2>
+      <ul className="joblist">
+        {jobs.slice(0, 8).map((j) => (
+          <li key={j.id}>
+            <button
+              className={j.id === activeId ? "jobrow on" : "jobrow"}
+              disabled={j.status !== "done"}
+              onClick={() => onSelect(j)}
+              title={j.status === "done" ? "Show these results" : j.status}
+            >
+              <span className={`st st-${j.status}`} />
+              <span className="jid">{j.id.slice(0, 8)}</span>
+              <span className="jmeta">
+                {j.status === "done" ? `${j.building_count} bldgs` : j.status}
+                {j.is_seed ? " · demo" : ""}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function Sidebar({
   drawMode,
   onToggleDraw,
@@ -46,6 +75,9 @@ export default function Sidebar({
   buildings,
   error,
   onExtract,
+  onCancel,
+  recentJobs,
+  onSelectJob,
   onLoadDemo,
   basemap,
   onBasemap,
@@ -84,6 +116,11 @@ export default function Sidebar({
         <button className="btn primary" onClick={onExtract} disabled={!aoi || running}>
           {running ? "Working…" : "Extract buildings"}
         </button>
+        {running && (
+          <button className="btn ghost cancel" onClick={onCancel}>
+            Cancel job
+          </button>
+        )}
         {job && <StageList status={job.status} />}
         {job?.status === "failed" && <p className="error">{job.error}</p>}
         {error && <p className="error">{error}</p>}
@@ -111,6 +148,8 @@ export default function Sidebar({
           </p>
         )}
       </section>
+
+      <RecentJobs jobs={recentJobs} activeId={job?.id} onSelect={onSelectJob} />
 
       <footer>
         <button className="btn ghost" onClick={onLoadDemo} disabled={running}>

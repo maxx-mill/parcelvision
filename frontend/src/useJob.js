@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createJob, getBuildings, getJob } from "./api.js";
+import { cancelJob, createJob, getBuildings, getJob } from "./api.js";
 
 const POLL_MS = 2000;
-const TERMINAL = new Set(["done", "failed"]);
+const TERMINAL = new Set(["done", "failed", "canceled"]);
 
 /** Submit a job and poll its status until it settles; loads the result layer
  *  when it completes. Also handles adopting an existing job (demo AOI). */
@@ -62,6 +62,17 @@ export function useJob() {
     [watch]
   );
 
+  const cancel = useCallback(async () => {
+    if (!job) return;
+    try {
+      const j = await cancelJob(job.id);
+      stopPolling();
+      setJob(j);
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [job]);
+
   const reset = useCallback(() => {
     stopPolling();
     setJob(null);
@@ -71,5 +82,5 @@ export function useJob() {
 
   useEffect(() => stopPolling, []);
 
-  return { job, buildings, error, submit, watch, reset };
+  return { job, buildings, error, submit, watch, cancel, reset };
 }

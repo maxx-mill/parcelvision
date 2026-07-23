@@ -21,6 +21,7 @@ export const createJob = async (bbox) =>
   );
 
 export const getJob = async (id) => json(await fetch(`/api/jobs/${id}`));
+export const cancelJob = async (id) => json(await fetch(`/api/jobs/${id}`, { method: "DELETE" }));
 export const listJobs = async () => json(await fetch("/api/jobs?limit=50"));
 export const getBuildings = async (id) => json(await fetch(`/api/jobs/${id}/buildings`));
 export const exportUrl = (id, format) => `/api/jobs/${id}/export?format=${format}`;
