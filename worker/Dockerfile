@@ -25,8 +25,10 @@ CMD ["python", "-m", "worker.main"]
 
 FROM slim AS full
 
-# opencv-python-headless (a geoai dep) needs glib at runtime.
-RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 \
+# opencv-python-headless (a geoai dep) needs glib; rasterio/rioxarray's bundled
+# GDAL needs system libexpat.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # CPU-only torch FIRST so the geoai install below sees torch satisfied and

@@ -33,6 +33,7 @@ class FakeBackend:
                 geoms.append(box(x, y, x + self.WIDTH_M, y + self.DEPTH_M))
                 x += self.SPACING_M
             y += self.SPACING_M
-        return gpd.GeoDataFrame(
-            {"confidence": [0.99] * len(geoms)}, geometry=geoms, crs=utm
-        )
+        gdf = gpd.GeoDataFrame({"confidence": [0.99] * len(geoms)}, geometry=geoms, crs=utm)
+        # The UTM bounding rect of a geographic bbox bows past the bbox itself
+        # after reprojection; keep only footprints strictly inside the AOI.
+        return gdf[gdf.to_crs(4326).within(box(*bbox))].reset_index(drop=True)
