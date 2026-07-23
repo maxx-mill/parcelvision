@@ -30,9 +30,11 @@ demo: .env
 seed:               ## Reload seed data into a running stack
 	$(COMPOSE) run --rm --no-deps --entrypoint python api scripts/load_seed.py /seed/demo_stl.geojson
 
-test:               ## Run tests inside the api image (works without local Python)
+test:               ## Run tests inside the images (works without local Python)
 	$(COMPOSE) build api
 	$(COMPOSE) run --rm --no-deps --entrypoint pytest api /app/tests -q
+	docker build ./worker --target slim -t parcelvision-worker-slim
+	docker run --rm parcelvision-worker-slim pytest /app/tests -q
 
 lint:               ## Ruff + black + mypy inside the api image
 	$(COMPOSE) build api

@@ -16,10 +16,10 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install api + worker (light deps only — ML deps are runtime-only)
+      - name: Install api + worker (light deps only — the ml extra stays runtime-only)
         run: |
-          pip install -r api/requirements.txt -r worker/requirements.txt
-          pip install pytest ruff black mypy
+          pip install -e ./api[dev] -e ./worker[dev]
+          pip install ruff black mypy
 
       - name: Ruff
         run: ruff check api worker tests
@@ -33,7 +33,7 @@ jobs:
       - name: Tests
         env:
           INFERENCE_BACKEND: fake
-        run: pytest tests -q
+        run: pytest api/tests worker/tests -q
 
   docker-build:
     runs-on: ubuntu-latest
