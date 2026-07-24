@@ -18,7 +18,6 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from shapely.geometry import box  # noqa: E402
-
 from worker.pipeline.fetch import fetch_imagery  # noqa: E402
 from worker.pipeline.postprocess import postprocess  # noqa: E402
 
@@ -122,7 +121,9 @@ def main() -> None:
             if gdf is not None and not gdf.empty:
                 parts.append(gdf if not parts else gdf.to_crs(parts[0].crs))
         pred = (
-            postprocess(gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=parts[0].crs), DEMO_BBOX)
+            postprocess(
+                gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=parts[0].crs), DEMO_BBOX
+            )
             if parts
             else gpd.GeoDataFrame(geometry=[], crs=4326)
         )

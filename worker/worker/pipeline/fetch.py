@@ -51,7 +51,9 @@ def _search_naip(bbox: list[float], year: int | None):
             kept = _newest_year_items(items)
             logger.info(
                 "STAC: %d NAIP item(s), keeping %d from %s",
-                len(items), len(kept), kept[0].datetime.year,
+                len(items),
+                len(kept),
+                kept[0].datetime.year,
             )
             return kept
         except RuntimeError:
@@ -61,7 +63,10 @@ def _search_naip(bbox: list[float], year: int | None):
             if attempt < SEARCH_ATTEMPTS:
                 logger.warning(
                     "STAC search attempt %d/%d failed (%s); retrying in %ds",
-                    attempt, SEARCH_ATTEMPTS, exc, RETRY_DELAY_S * attempt,
+                    attempt,
+                    SEARCH_ATTEMPTS,
+                    exc,
+                    RETRY_DELAY_S * attempt,
                 )
                 time.sleep(RETRY_DELAY_S * attempt)
     raise RuntimeError(f"STAC search failed after {SEARCH_ATTEMPTS} attempts") from last_exc

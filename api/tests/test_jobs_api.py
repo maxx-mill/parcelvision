@@ -67,8 +67,12 @@ def _job(status: str):
     from app.models import Job
 
     return Job(
-        id=uuid.uuid4(), status=status, bbox=STL_BBOX, backend="local_cpu",
-        is_seed=False, created_at=datetime.now(UTC),
+        id=uuid.uuid4(),
+        status=status,
+        bbox=STL_BBOX,
+        backend="local_cpu",
+        is_seed=False,
+        created_at=datetime.now(UTC),
     )
 
 

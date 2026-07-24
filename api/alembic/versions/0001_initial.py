@@ -44,9 +44,7 @@ def upgrade() -> None:
         sa.Column("area_sqm", sa.Float(), nullable=True),
     )
     op.create_index("ix_buildings_job_id", "buildings", ["job_id"])
-    op.create_index(
-        "idx_buildings_geom", "buildings", ["geom"], postgresql_using="gist"
-    )
+    op.create_index("idx_buildings_geom", "buildings", ["geom"], postgresql_using="gist")
 
 
 def downgrade() -> None:

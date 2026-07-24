@@ -22,10 +22,10 @@ jobs:
           pip install ruff black mypy
 
       - name: Ruff
-        run: ruff check api worker tests
+        run: ruff check api worker
 
       - name: Black
-        run: black --check api worker tests
+        run: black --check api worker
 
       - name: Mypy (non-blocking for now)
         run: mypy api/app worker/worker || true
@@ -33,7 +33,7 @@ jobs:
       - name: Tests
         env:
           INFERENCE_BACKEND: fake
-        run: pytest api/tests worker/tests -q
+        run: pytest -q
 
   docker-build:
     runs-on: ubuntu-latest

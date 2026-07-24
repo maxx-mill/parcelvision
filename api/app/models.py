@@ -45,9 +45,7 @@ class Job(Base):
     building_count: Mapped[int | None] = mapped_column(Integer, default=None)
     # Marks precomputed demo results loaded by `make demo` rather than live runs.
     is_seed: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -57,9 +55,7 @@ class Building(Base):
     __tablename__ = "buildings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("jobs.id", ondelete="CASCADE"), index=True
-    )
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     # Regularization can emit Polygon or MultiPolygon; store generic geometry.
     geom: Mapped[object] = mapped_column(Geometry(geometry_type="GEOMETRY", srid=4326))
     confidence: Mapped[float | None] = mapped_column(Float, default=None)
