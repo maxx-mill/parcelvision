@@ -20,5 +20,8 @@ python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_ignores = true
 
-[tool.pytest.ini_options]
-testpaths = ["api/tests", "worker/tests"]
+# No root [tool.pytest.ini_options]: the api and worker packages each own a
+# same-named `tests/` dir and expect their own editable install on sys.path, so
+# the suites must run from their service dir (CI does `cd api && pytest`, same as
+# the Docker images and `make test`). A root-level `pytest` would cross-import.
+

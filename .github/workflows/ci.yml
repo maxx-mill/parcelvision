@@ -33,7 +33,11 @@ jobs:
       - name: Tests
         env:
           INFERENCE_BACKEND: fake
-        run: pytest -q
+        # Each suite runs from its service dir so `app`/`worker` resolve to the
+        # editable install, not the sibling source dir (see root pyproject note).
+        run: |
+          (cd api && pytest tests -q)
+          (cd worker && pytest tests -q)
 
   docker-build:
     runs-on: ubuntu-latest
