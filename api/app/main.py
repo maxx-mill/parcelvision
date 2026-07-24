@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import init_db
-from .routers import exports, health, jobs
+from .routers import exports, health, jobs, validation
 
 
 @asynccontextmanager
@@ -26,4 +26,5 @@ app.add_middleware(
 # nginx (frontend container) proxies /api/* here, so all routes live under /api.
 app.include_router(health.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
+app.include_router(validation.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")

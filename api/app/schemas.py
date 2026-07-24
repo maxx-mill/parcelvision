@@ -39,9 +39,20 @@ class JobOut(BaseModel):
     error: str | None = None
     building_count: int | None = None
     is_seed: bool = False
+    validation_status: str | None = None
+    validation_error: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ValidationSummary(BaseModel):
+    parcels_total: int
+    parcels_with_buildings: int
+    parcels_empty: int
+    buildings_total: int
+    buildings_off_parcel: int
+    buildings_crossing: int
 
 
 class HealthOut(BaseModel):

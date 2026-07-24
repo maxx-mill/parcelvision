@@ -13,6 +13,7 @@ from .backends import get_backend
 from .db import get_engine
 from .pipeline.fetch import fetch_imagery
 from .pipeline.load import load_buildings
+from .pipeline.parcels import fetch_parcels, upsert_parcels, validate_job
 from .pipeline.postprocess import postprocess
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,38 @@ def run_extraction(job_id: str) -> dict:
         raise
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
+
+
+def run_validation(job_id: str) -> dict:
+    """Chapter 3: validate a done job's footprints against county parcels.
+    Enqueued by the API as `worker.jobs.run_validation`."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT bbox, status FROM jobs WHERE id = :id"), {"id": job_id}
+        ).one_or_none()
+    if row is None:
+        raise RuntimeError(f"job {job_id} not found in DB")
+    if row.status != status.DONE:
+        raise RuntimeError(f"job {job_id} is {row.status}, not done — nothing to validate")
+    bbox: list[float] = row.bbox
+
+    try:
+        status.set_validation_status(engine, job_id, status.LOADING_PARCELS)
+        parcels = fetch_parcels(bbox)
+        loaded = upsert_parcels(engine, parcels)
+        logger.info("job %s: %d parcels in AOI (%d new)", job_id, len(parcels), loaded)
+
+        status.set_validation_status(engine, job_id, status.VALIDATING)
+        summary = validate_job(engine, job_id, bbox)
+
+        status.set_validation_status(engine, job_id, status.DONE)
+        return {"job_id": job_id, **summary}
+    except Exception as exc:
+        status.set_validation_status(
+            engine, job_id, status.FAILED, error=f"{type(exc).__name__}: {exc}"
+        )
+        raise
 
 
 def _ensure_imagery_dir() -> str:

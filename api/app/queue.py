@@ -8,9 +8,12 @@ QUEUE_NAME = "extraction"
 # Referenced by dotted path so the API image never imports (or installs) the
 # worker's ML stack. Keep in sync with worker/worker/jobs.py.
 EXTRACTION_FUNC = "worker.jobs.run_extraction"
+VALIDATION_FUNC = "worker.jobs.run_validation"
 
 # CPU inference on a capped AOI runs minutes, not hours; this is the hard stop.
 JOB_TIMEOUT_S = 3600
+# Validation is a REST fetch + spatial SQL — fast, but the county service can lag.
+VALIDATION_TIMEOUT_S = 600
 
 
 def get_redis() -> redis.Redis:
@@ -28,6 +31,17 @@ def enqueue_extraction(job_id: str) -> None:
         job_timeout=JOB_TIMEOUT_S,
         job_id=job_id,
         retry=Retry(max=2, interval=[30, 120]),
+    )
+
+
+def enqueue_validation(job_id: str) -> None:
+    q = Queue(QUEUE_NAME, connection=get_redis())
+    q.enqueue(
+        VALIDATION_FUNC,
+        job_id,
+        job_timeout=VALIDATION_TIMEOUT_S,
+        job_id=f"validate-{job_id}",  # distinct from the extraction job's id
+        retry=Retry(max=1, interval=[30]),
     )
 
 

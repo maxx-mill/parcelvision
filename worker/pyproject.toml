@@ -15,6 +15,10 @@ dependencies = [
     "pyogrio==0.13.0",
     "shapely==2.1.2",
     "pyproj==3.7.2",
+    # ArcGIS REST parcel loader (Chapter 3). requests is imported at module load;
+    # rasterio/planetary-computer/pystac-client are lazy-imported in fetch.py and
+    # supplied by the `ml` extra (via geoai) in the full worker image.
+    "requests==2.34.2",
     # Same regularization engine geoai.regularize wraps — pure geometry, no ML.
     "buildingregulariser==0.2.5",
 ]
