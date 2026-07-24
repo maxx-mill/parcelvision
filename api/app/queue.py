@@ -1,5 +1,5 @@
 import redis
-from rq import Queue
+from rq import Queue, Retry
 
 from .config import get_settings
 
@@ -19,7 +19,16 @@ def get_redis() -> redis.Redis:
 
 def enqueue_extraction(job_id: str) -> None:
     q = Queue(QUEUE_NAME, connection=get_redis())
-    q.enqueue(EXTRACTION_FUNC, job_id, job_timeout=JOB_TIMEOUT_S, job_id=job_id)
+    # Two retries with backoff ride out transient upstream faults (Planetary
+    # Computer 504s, redis blips). Reruns are safe: the worker clears any
+    # partial buildings for the job before writing.
+    q.enqueue(
+        EXTRACTION_FUNC,
+        job_id,
+        job_timeout=JOB_TIMEOUT_S,
+        job_id=job_id,
+        retry=Retry(max=2, interval=[30, 120]),
+    )
 
 
 def cancel_extraction(job_id: str, running: bool) -> None:

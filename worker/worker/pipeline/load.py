@@ -7,10 +7,13 @@ schema, not code — see that module's docstring.
 import uuid
 
 import geopandas as gpd
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
 
 def load_buildings(engine: Engine, job_id: str, gdf: gpd.GeoDataFrame) -> int:
+    # Idempotent under RQ retries: a rerun replaces the job's rows, never appends twice.
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM buildings WHERE job_id = :jid"), {"jid": job_id})
     if gdf.empty:
         return 0
     out = gdf.rename_geometry("geom").copy()

@@ -154,9 +154,9 @@ of v6 — imports are named), Vite 8.
 
 - **Ch. 1 — MVP (done):** bbox → NAIP → building segmentation → regularized
   vectors → PostGIS → map → multi-format export; demo seed path; CI.
-- **Ch. 2 — Async hardening (current):** job cancellation ✓, history panel ✓,
-  streamed COG fetch ✓, alembic migrations ✓, compose smoke test in CI ✓;
-  remaining: RQ retry policy, scale-out notes.
+- **Ch. 2 — Async hardening (done):** job cancellation, history panel,
+  streamed COG fetch, alembic migrations, compose smoke test in CI, RQ retries
+  with idempotent reruns, restart policies + orphaned-job reconciler.
 - **Ch. 3 — Parcel validation:** St. Louis County parcels in PostGIS
   (`data/parcels/`); buildings-per-parcel, footprints crossing parcel lines,
   parcels with no structure — as a panel and an exportable layer.
