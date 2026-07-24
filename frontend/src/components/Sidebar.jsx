@@ -242,8 +242,8 @@ export default function Sidebar({
           </label>
         </div>
         <p className="fineprint">
-          CV finds what's visible — buildings, not legal parcel lines. Parcel validation against
-          county data lands in Chapter 3.
+          CV finds what's visible — buildings, not legal parcel lines. Validate a finished job
+          against county parcels to catch detection and boundary errors.
         </p>
       </footer>
     </aside>
