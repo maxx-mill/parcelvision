@@ -5,8 +5,7 @@ are built from separate contexts). If you change a table here, update the
 matching SQL/column names in worker/worker/pipeline/load.py and
 worker/worker/status.py.
 
-Migrations: MVP creates tables with `Base.metadata.create_all` at API startup.
-Alembic lands in Chapter 2 once the schema stops churning.
+Migrations: alembic (api/alembic/), run to head at API startup by db.init_db.
 """
 
 import uuid

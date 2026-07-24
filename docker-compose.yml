@@ -31,6 +31,7 @@ services:
 
   api:
     build: ./api
+    restart: unless-stopped
     env_file: .env
     environment:
       POSTGRES_HOST: db
@@ -47,6 +48,8 @@ services:
 
   worker:
     build: ./worker
+    # RQ quits on transient Redis timeouts (observed live); let Docker revive it.
+    restart: unless-stopped
     env_file: .env
     environment:
       POSTGRES_HOST: db

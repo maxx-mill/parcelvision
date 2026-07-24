@@ -13,6 +13,8 @@ RUN python -c "import tomllib; d = tomllib.load(open('pyproject.toml','rb'))['pr
     && pip install -r /tmp/req.txt
 
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
 COPY scripts ./scripts
 COPY tests ./tests
 

@@ -54,9 +54,10 @@ runs in a request handler.
 
 **Pipeline** (worker):
 
-1. `fetch` — `geoai.download_naip` (STAC search + signing against Microsoft
-   Planetary Computer), then CRS-aware clip of each quarter-quad to the AOI —
-   inference on a full 7000×7000 px tile for a 1 km² request would waste minutes.
+1. `fetch` — STAC search against Microsoft Planetary Computer, newest NAIP
+   vintage selected from metadata, then **windowed COG reads**: rasterio pulls
+   only the AOI's pixels over HTTP range requests (a few MB, ~2 s) instead of
+   downloading 480 MB quarter-quads. Retries cover PC's transient 504s.
 2. `segment` — pluggable backend (below) returns raw detections with confidence,
    in the raster's projected CRS.
 3. `postprocess` — ML-free: [buildingregulariser] orthogonalizes corners, areas
@@ -118,9 +119,28 @@ installed by default.
 |-------|---------|
 | `POST /api/jobs` | Submit `{bbox: [minLon, minLat, maxLon, maxLat]}` → `job_id` (413 over area cap) |
 | `GET /api/jobs/{id}` | Status polling contract |
+| `DELETE /api/jobs/{id}` | Cancel: dequeues queued jobs, stops running ones (409 if terminal) |
 | `GET /api/jobs/{id}/buildings` | Results as GeoJSON straight from PostGIS |
 | `GET /api/jobs/{id}/export?format=` | `geojson`, `gpkg`, `shp` (zip), `fgdb` (zip, GDAL OpenFileGDB) |
 | `GET /api/health` | DB + Redis liveness |
+
+## Extraction quality (measured, not vibes)
+
+`worker/scripts/eval_extraction.py` scores configs against Overture footprints
+for the demo AOI (IoU ≥ 0.5 matching). Results on the University City AOI:
+
+| config | detections | precision | recall | F1 |
+|--------|-----------:|----------:|-------:|---:|
+| **512 px chips, conf 0.5 (default)** | 149 | 0.21 | 0.56 | **0.30** |
+| 512 px, conf 0.4 | 162 | 0.19 | 0.56 | 0.29 |
+| 1024 px chips | 25 | 0.20 | 0.09 | 0.13 |
+
+Takeaways: the checkpoint was trained at 512 px — larger chips collapse recall,
+and lower confidence only adds false positives, so the defaults stay. Absolute
+numbers undercount reality (Overture merges campus complexes and omits
+garages/sheds that NAIP resolves; matched detections average 0.70 IoU). The
+model is strongest on residential fabric and fragments large institutional
+buildings — the honest fix is fine-tuning (Chapter 5), not parameter tuning.
 
 ## Versions
 
@@ -134,8 +154,9 @@ of v6 — imports are named), Vite 8.
 
 - **Ch. 1 — MVP (done):** bbox → NAIP → building segmentation → regularized
   vectors → PostGIS → map → multi-format export; demo seed path; CI.
-- **Ch. 2 — Async hardening:** job cancellation, retries/timeouts tuning,
-  alembic migrations, compose smoke test in CI.
+- **Ch. 2 — Async hardening (current):** job cancellation ✓, history panel ✓,
+  streamed COG fetch ✓, alembic migrations ✓, compose smoke test in CI ✓;
+  remaining: RQ retry policy, scale-out notes.
 - **Ch. 3 — Parcel validation:** St. Louis County parcels in PostGIS
   (`data/parcels/`); buildings-per-parcel, footprints crossing parcel lines,
   parcels with no structure — as a panel and an exportable layer.

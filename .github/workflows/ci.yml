@@ -50,3 +50,11 @@ jobs:
       # slim layer (no ML deps) to prove the Dockerfile is valid without the wait.
       - name: Build worker image (slim target)
         run: docker build ./worker --target slim -t parcelvision-worker:ci
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Full-stack smoke test (fake backend, slim worker)
+        run: bash scripts/smoke.sh

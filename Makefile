@@ -30,6 +30,9 @@ demo: .env
 seed:               ## Reload seed data into a running stack
 	$(COMPOSE) run --rm --no-deps --entrypoint python api scripts/load_seed.py /seed/demo_stl.geojson
 
+smoke:              ## Full-stack lifecycle test on the fake backend (no ML)
+	bash scripts/smoke.sh
+
 test:               ## Run tests inside the images (works without local Python)
 	$(COMPOSE) build api
 	$(COMPOSE) run --rm --no-deps --entrypoint pytest api /app/tests -q

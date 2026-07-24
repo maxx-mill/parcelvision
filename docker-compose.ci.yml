@@ -1,0 +1,20 @@
+# Overlay for CI / smoke tests: worker runs the slim image (no torch) with the
+# fake backend, so the full job lifecycle exercises in seconds on any runner.
+# Run under a separate project so it never touches a dev stack:
+#   docker compose -p parcelvision-smoke -f docker-compose.yml -f docker-compose.ci.yml up -d
+services:
+  db:
+    ports: !override []
+  redis:
+    ports: !override []
+  api:
+    ports: !override
+      - "8001:8000"
+    environment:
+      INFERENCE_BACKEND: fake
+  worker:
+    build:
+      context: ./worker
+      target: slim
+    environment:
+      INFERENCE_BACKEND: fake
