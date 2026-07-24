@@ -3,6 +3,7 @@ import { listJobs } from "./api.js";
 import MapView from "./components/MapView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import { useJob } from "./useJob.js";
+import { useValidation } from "./useValidation.js";
 
 export default function App() {
   const [drawMode, setDrawMode] = useState(false);
@@ -11,6 +12,7 @@ export default function App() {
   const [demoError, setDemoError] = useState(null);
   const [recentJobs, setRecentJobs] = useState([]);
   const { job, buildings, error, submit, watch, cancel, reset } = useJob();
+  const validation = useValidation(job);
 
   // Refresh history when the active job settles (and on load).
   const jobStatus = job?.status;
@@ -71,12 +73,14 @@ export default function App() {
         onLoadDemo={onLoadDemo}
         basemap={basemap}
         onBasemap={setBasemap}
+        validation={validation}
       />
       <MapView
         basemap={basemap}
         drawMode={drawMode}
         aoi={aoi}
         buildings={buildings}
+        parcels={validation.result?.parcels}
         onBBoxDrawn={onBBoxDrawn}
       />
     </div>

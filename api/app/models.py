@@ -79,6 +79,4 @@ class Parcel(Base):
     locator: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     address: Mapped[str | None] = mapped_column(Text, default=None)
     geom: Mapped[object] = mapped_column(Geometry(geometry_type="GEOMETRY", srid=4326))
-    loaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -64,15 +64,11 @@ def fetch_parcels(bbox: list[float]) -> gpd.GeoDataFrame:
         offset += PAGE_SIZE
 
     if not frames:
-        return gpd.GeoDataFrame(
-            {"locator": [], "address": []}, geometry=[], crs=4326
-        )
+        return gpd.GeoDataFrame({"locator": [], "address": []}, geometry=[], crs=4326)
     import pandas as pd
 
     gdf = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=4326)
-    gdf = gdf.rename(
-        columns={PARCEL_LOCATOR_FIELD: "locator", PARCEL_ADDRESS_FIELD: "address"}
-    )
+    gdf = gdf.rename(columns={PARCEL_LOCATOR_FIELD: "locator", PARCEL_ADDRESS_FIELD: "address"})
     gdf = gdf[gdf.geometry.notna() & gdf["locator"].notna()]
     gdf = gdf[gdf.geometry.intersects(box(*bbox))]
     # Layer can return the same parcel twice across pages at page boundaries.
@@ -112,8 +108,7 @@ def validate_job(engine: Engine, job_id: str, bbox: list[float]) -> dict:
     }
     with engine.begin() as conn:
         row = conn.execute(
-            text(
-                f"""
+            text(f"""
                 WITH aoi_parcels AS (
                     SELECT id, geom FROM parcels
                     WHERE ST_Intersects(geom, {envelope})
@@ -139,8 +134,7 @@ def validate_job(engine: Engine, job_id: str, bbox: list[float]) -> dict:
                         WHERE (SELECT count(*) FROM aoi_parcels p
                                WHERE ST_Overlaps(p.geom, b.geom)) > 0)
                         AS buildings_crossing
-                """
-            ),
+                """),
             params,
         ).one()
     summary = {

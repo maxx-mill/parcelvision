@@ -44,10 +44,10 @@ def start_validation(job_id: uuid.UUID, session: Session = Depends(get_session))
     return job
 
 
-# Per-parcel validation, computed live from the same spatial joins the worker
-# summarized. A building is assigned to the parcel containing its interior point;
-# a footprint "crosses" when it geometrically overlaps a parcel boundary.
-_PARCEL_SQL = """
+# Per-parcel layer for map shading. A building is assigned to the parcel
+# containing its interior point; a footprint "crosses" when it geometrically
+# overlaps a parcel boundary.
+_PARCELS_SQL = """
 WITH aoi AS (
     SELECT ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, 4326) AS env
 ),
@@ -68,6 +68,34 @@ SELECT
 FROM aoi_parcels ap
 """
 
+# Building-centric summary — counts each building once, so overlapping-parcel
+# slivers can't double-count. Mirrors worker/worker/pipeline/parcels.validate_job.
+_SUMMARY_SQL = """
+WITH aoi_parcels AS (
+    SELECT id, geom FROM parcels
+    WHERE ST_Intersects(geom, ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, 4326))
+),
+jb AS (
+    SELECT id, geom, ST_PointOnSurface(geom) AS pt
+    FROM buildings WHERE job_id = :jid
+),
+off AS (  -- a building is "off-parcel" when its interior point is in no parcel
+    SELECT b.id FROM jb b
+    WHERE NOT EXISTS (SELECT 1 FROM aoi_parcels p WHERE ST_Contains(p.geom, b.pt))
+)
+SELECT
+    (SELECT count(*) FROM aoi_parcels) AS parcels_total,
+    -- parcel-centric so it matches the map layer's empty/with-buildings shading
+    (SELECT count(*) FROM aoi_parcels p
+        WHERE EXISTS (SELECT 1 FROM jb b WHERE ST_Contains(p.geom, b.pt)))
+        AS parcels_with_buildings,
+    (SELECT count(*) FROM jb) AS buildings_total,
+    (SELECT count(*) FROM off) AS buildings_off_parcel,
+    (SELECT count(*) FROM jb b
+        WHERE EXISTS (SELECT 1 FROM aoi_parcels p WHERE ST_Overlaps(p.geom, b.geom)))
+        AS buildings_crossing
+"""
+
 
 @router.get("/{job_id}/validation")
 def get_validation(job_id: uuid.UUID, session: Session = Depends(get_session)) -> dict:
@@ -78,47 +106,33 @@ def get_validation(job_id: uuid.UUID, session: Session = Depends(get_session)) -
 
     minx, miny, maxx, maxy = job.bbox
     params = {"jid": str(job_id), "minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy}
-    rows = session.execute(text(_PARCEL_SQL), params).all()
 
-    features = []
-    parcels_with = buildings_on = crossing = 0
-    for r in rows:
-        if r.building_count > 0:
-            parcels_with += 1
-            buildings_on += r.building_count
-        crossing += r.crossing_count
-        features.append(
-            {
-                "type": "Feature",
-                "geometry": json.loads(r.geometry),
-                "properties": {
-                    "locator": r.locator,
-                    "address": r.address,
-                    "building_count": r.building_count,
-                    "crossing_count": r.crossing_count,
-                    # UI shading class
-                    "flag": (
-                        "empty"
-                        if r.building_count == 0
-                        else "multi"
-                        if r.building_count > 1
-                        else "ok"
-                    ),
-                },
-            }
-        )
-
-    total_buildings = session.execute(
-        text("SELECT count(*) FROM buildings WHERE job_id = :jid"), {"jid": str(job_id)}
-    ).scalar_one()
+    s = session.execute(text(_SUMMARY_SQL), params).one()
     summary = ValidationSummary(
-        parcels_total=len(rows),
-        parcels_with_buildings=parcels_with,
-        parcels_empty=len(rows) - parcels_with,
-        buildings_total=total_buildings,
-        buildings_off_parcel=total_buildings - buildings_on,
-        buildings_crossing=crossing,
+        parcels_total=s.parcels_total,
+        parcels_with_buildings=s.parcels_with_buildings,
+        parcels_empty=s.parcels_total - s.parcels_with_buildings,
+        buildings_total=s.buildings_total,
+        buildings_off_parcel=s.buildings_off_parcel,
+        buildings_crossing=s.buildings_crossing,
     )
+
+    features = [
+        {
+            "type": "Feature",
+            "geometry": json.loads(r.geometry),
+            "properties": {
+                "locator": r.locator,
+                "address": r.address,
+                "building_count": r.building_count,
+                "crossing_count": r.crossing_count,
+                "flag": (
+                    "empty" if r.building_count == 0 else "multi" if r.building_count > 1 else "ok"
+                ),
+            },
+        }
+        for r in session.execute(text(_PARCELS_SQL), params).all()
+    ]
     return {
         "status": job.validation_status,
         "error": job.validation_error,

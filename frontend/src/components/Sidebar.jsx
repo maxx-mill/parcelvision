@@ -67,6 +67,70 @@ function RecentJobs({ jobs, activeId, onSelect }) {
   );
 }
 
+const VAL_STAGE_LABEL = {
+  loading_parcels: "Loading county parcels…",
+  validating: "Cross-checking footprints…",
+};
+
+function ValidationPanel({ job, validation }) {
+  const { status, result, error, validate } = validation;
+  const busy = status === "loading_parcels" || status === "validating";
+
+  return (
+    <div className="validation">
+      <h3>Parcel validation</h3>
+      {status == null && (
+        <>
+          <p className="meta muted">
+            Check detected footprints against authoritative county parcels.
+          </p>
+          <button className="btn small" onClick={validate}>
+            Validate against parcels
+          </button>
+        </>
+      )}
+      {busy && <p className="meta">{VAL_STAGE_LABEL[status]}</p>}
+      {status === "failed" && <p className="error">{error || "validation failed"}</p>}
+      {status === "done" && result && (
+        <>
+          <div className="valstats">
+            <div className="valstat">
+              <span className="num">{result.summary.parcels_total}</span>parcels
+            </div>
+            <div className="valstat">
+              <span className="num red">{result.summary.parcels_empty}</span>no structure
+            </div>
+            <div className="valstat">
+              <span className="num amber">{result.summary.buildings_crossing}</span>cross a line
+            </div>
+            <div className="valstat">
+              <span className="num">{result.summary.buildings_off_parcel}</span>off-parcel
+            </div>
+          </div>
+          <ul className="vallegend">
+            <li>
+              <span className="sw" style={{ background: "#ef4444" }} /> parcel, no detected structure
+            </li>
+            <li>
+              <span className="sw" style={{ background: "#f59e0b" }} /> parcel, multiple detections
+            </li>
+            <li>
+              <span className="sw" style={{ background: "#22c55e" }} /> parcel, one detection
+            </li>
+            <li>
+              <span className="sw line" style={{ background: "#f43f5e" }} /> footprint crosses a boundary
+            </li>
+          </ul>
+          <p className="fineprint">
+            Parcels: St. Louis County open data. CV can't see cadastral lines — this join is how you
+            catch detection and boundary errors.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar({
   drawMode,
   onToggleDraw,
@@ -81,6 +145,7 @@ export default function Sidebar({
   onLoadDemo,
   basemap,
   onBasemap,
+  validation,
 }) {
   const running = job && job.status !== "done" && job.status !== "failed";
   const area = aoi ? bboxAreaKm2(aoi) : null;
@@ -141,6 +206,7 @@ export default function Sidebar({
                 </a>
               ))}
             </div>
+            <ValidationPanel job={job} validation={validation} />
           </>
         ) : (
           <p className="meta muted">

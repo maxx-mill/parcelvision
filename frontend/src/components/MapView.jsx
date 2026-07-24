@@ -49,7 +49,17 @@ function bboxToPolygon([minx, miny, maxx, maxy]) {
   };
 }
 
-export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn }) {
+// Parcel fill by validation flag: red = no detected structure (the headline
+// finding), amber = more than one detection, faint green = a clean 1:1 match.
+const PARCEL_FILL = [
+  "match",
+  ["get", "flag"],
+  "empty", "#ef4444",
+  "multi", "#f59e0b",
+  "#22c55e",
+];
+
+export default function MapView({ basemap, drawMode, aoi, buildings, parcels, onBBoxDrawn }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const readyRef = useRef(false);
@@ -65,7 +75,27 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
       map.addSource("aoi", { type: "geojson", data: EMPTY });
+      map.addSource("parcels", { type: "geojson", data: EMPTY });
       map.addSource("buildings", { type: "geojson", data: EMPTY });
+
+      // Parcels sit UNDER the detected footprints so both read at once.
+      map.addLayer({
+        id: "parcels-fill",
+        type: "fill",
+        source: "parcels",
+        paint: { "fill-color": PARCEL_FILL, "fill-opacity": 0.25 },
+      });
+      map.addLayer({
+        id: "parcels-line",
+        type: "line",
+        source: "parcels",
+        paint: {
+          // Parcels a footprint crosses get a bright boundary.
+          "line-color": ["case", [">", ["get", "crossing_count"], 0], "#f43f5e", "#64748b"],
+          "line-width": ["case", [">", ["get", "crossing_count"], 0], 1.6, 0.6],
+        },
+      });
+
       map.addLayer({
         id: "buildings-fill",
         type: "fill",
@@ -104,6 +134,24 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
       map.on("mouseleave", "buildings-fill", () => {
         map.getCanvas().style.cursor = "";
       });
+
+      // Click a parcel (where no footprint covers it) to see its validation.
+      map.on("click", "parcels-fill", (e) => {
+        if (map.queryRenderedFeatures(e.point, { layers: ["buildings-fill"] }).length) return;
+        const p = e.features[0]?.properties ?? {};
+        const verdict =
+          p.building_count === 0
+            ? "no detected structure"
+            : `${p.building_count} detected structure${p.building_count > 1 ? "s" : ""}`;
+        const crossing = p.crossing_count > 0 ? `<br/>${p.crossing_count} footprint(s) cross the line` : "";
+        new Popup({ closeButton: false, maxWidth: "240px" })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="bldg-popup"><strong>Parcel ${p.locator ?? ""}</strong>` +
+              `<br/>${p.address ?? ""}<br/>${verdict}${crossing}</div>`
+          )
+          .addTo(map);
+      });
       readyRef.current = true;
     });
     mapRef.current = map;
@@ -126,6 +174,14 @@ export default function MapView({ basemap, drawMode, aoi, buildings, onBBoxDrawn
       map.getSource("aoi").setData(aoi ? bboxToPolygon(aoi) : EMPTY);
     });
   }, [aoi]);
+
+  // Parcel validation layer
+  useEffect(() => {
+    const map = mapRef.current;
+    whenReady(readyRef, map, () => {
+      map.getSource("parcels").setData(parcels ?? EMPTY);
+    });
+  }, [parcels]);
 
   // Results layer
   useEffect(() => {

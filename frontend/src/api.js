@@ -25,3 +25,7 @@ export const cancelJob = async (id) => json(await fetch(`/api/jobs/${id}`, { met
 export const listJobs = async () => json(await fetch("/api/jobs?limit=50"));
 export const getBuildings = async (id) => json(await fetch(`/api/jobs/${id}/buildings`));
 export const exportUrl = (id, format) => `/api/jobs/${id}/export?format=${format}`;
+
+export const startValidation = async (id) =>
+  json(await fetch(`/api/jobs/${id}/validate`, { method: "POST" }));
+export const getValidation = async (id) => json(await fetch(`/api/jobs/${id}/validation`));

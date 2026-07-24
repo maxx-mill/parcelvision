@@ -135,6 +135,24 @@ footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 .jobrow .jid { font-family: Consolas, monospace; color: var(--muted); }
 .jobrow .jmeta { margin-left: auto; color: var(--muted); }
 
+.validation { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.validation h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--muted); margin: 0 0 8px;
+}
+.valstats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
+.valstat {
+  display: flex; flex-direction: column; font-size: 11.5px; color: var(--muted);
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+.valstat .num { font-size: 19px; font-weight: 600; color: var(--text); line-height: 1.1; }
+.valstat .num.red { color: var(--red); }
+.valstat .num.amber { color: var(--amber); }
+.vallegend { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 5px; }
+.vallegend li { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); }
+.vallegend .sw { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; opacity: 0.7; }
+.vallegend .sw.line { height: 3px; border-radius: 2px; }
+
 .maplibregl-popup-content {
   background: var(--bg);
   color: var(--text);

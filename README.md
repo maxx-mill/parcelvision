@@ -121,8 +121,29 @@ installed by default.
 | `GET /api/jobs/{id}` | Status polling contract |
 | `DELETE /api/jobs/{id}` | Cancel: dequeues queued jobs, stops running ones (409 if terminal) |
 | `GET /api/jobs/{id}/buildings` | Results as GeoJSON straight from PostGIS |
+| `POST /api/jobs/{id}/validate` | Kick off parcel validation (async worker task) |
+| `GET /api/jobs/{id}/validation` | Summary + per-parcel GeoJSON (empty / one / multiple / crossing) |
 | `GET /api/jobs/{id}/export?format=` | `geojson`, `gpkg`, `shp` (zip), `fgdb` (zip, GDAL OpenFileGDB) |
 | `GET /api/health` | DB + Redis liveness |
+
+## Parcel validation (the differentiator)
+
+CV extracts what's *visible*; parcel lines are a surveyed abstraction it can't
+see. Chapter 3 closes that gap by validating detected footprints against
+**authoritative St. Louis County parcels** (their public ArcGIS REST layer,
+owner-neutral fields). After a job finishes, `POST /validate` streams the
+parcels covering the AOI into PostGIS and runs spatial joins:
+
+- **buildings per parcel** — interior-point assignment (`ST_PointOnSurface` +
+  `ST_Contains`), so one footprint counts for one parcel;
+- **footprints crossing a boundary** — `ST_Overlaps` against parcel edges, a
+  signal of either a detection error or a genuine lot-line structure;
+- **parcels with no detected structure** — the empty-parcel set.
+
+The map shades parcels red (no structure) / amber (multiple) / green (clean 1:1)
+with crossing boundaries highlighted, and the panel reports the counts. On the
+demo AOI: 44 parcels, 37 with structures, 7 empty, 17 footprints crossing lines
+— which also surfaces the model's over-segmentation (avg 3.7 detections/parcel).
 
 ## Extraction quality (measured, not vibes)
 
@@ -157,9 +178,9 @@ of v6 — imports are named), Vite 8.
 - **Ch. 2 — Async hardening (done):** job cancellation, history panel,
   streamed COG fetch, alembic migrations, compose smoke test in CI, RQ retries
   with idempotent reruns, restart policies + orphaned-job reconciler.
-- **Ch. 3 — Parcel validation:** St. Louis County parcels in PostGIS
-  (`data/parcels/`); buildings-per-parcel, footprints crossing parcel lines,
-  parcels with no structure — as a panel and an exportable layer.
+- **Ch. 3 — Parcel validation (done):** St. Louis County parcels streamed into
+  PostGIS per-AOI; buildings-per-parcel, footprints crossing parcel lines,
+  parcels with no structure — as a map layer and a summary panel.
 - **Ch. 4 — Roads:** road extraction as a second feature class.
 - **Ch. 5 — Training story:** reproducible fine-tuning notebook (geoai training
   utilities on SpaceNet/Inria or `giswqs/geospatial`), IoU/mAP vs the pretrained
