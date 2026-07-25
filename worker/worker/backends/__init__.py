@@ -12,6 +12,10 @@ def get_backend(name: str) -> Backend:
         from .local_gpu import LocalGPUBackend
 
         return LocalGPUBackend()
+    if name == "rfdetr":
+        from .rfdetr import RFDetrBackend
+
+        return RFDetrBackend()
     if name == "endpoint":
         from .endpoint import EndpointBackend
 
