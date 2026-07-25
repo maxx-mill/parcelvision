@@ -129,7 +129,8 @@ def detect_yolov8(tif: str) -> gpd.GeoDataFrame:
         polys, scores = [], []
         if res.masks is not None:
             confs = res.boxes.conf.cpu().numpy()
-            for xy, c in zip(res.masks.xy, confs):  # xy: Nx2 pixel coords in tile
+            # ultralytics aligns masks and boxes 1:1
+            for xy, c in zip(res.masks.xy, confs, strict=True):  # xy: Nx2 pixel coords
                 if len(xy) < 3:
                     continue
                 geo = [tf * (float(x), float(y)) for x, y in xy]
