@@ -147,21 +147,32 @@ demo AOI: 44 parcels, 37 with structures, 7 empty, 17 footprints crossing lines
 
 ## Extraction quality (measured, not vibes)
 
-`worker/scripts/eval_extraction.py` scores configs against Overture footprints
-for the demo AOI (IoU ≥ 0.5 matching). Results on the University City AOI:
+`worker/scripts/eval_detectors.py` scores each imagery×detector combination
+against Overture footprints (IoU ≥ 0.5). Results on the residential demo AOI —
+the parcel-level real-estate case that matters:
 
-| config | detections | precision | recall | F1 |
-|--------|-----------:|----------:|-------:|---:|
-| **512 px chips, conf 0.5 (default)** | 149 | 0.21 | 0.56 | **0.30** |
-| 512 px, conf 0.4 | 162 | 0.19 | 0.56 | 0.29 |
-| 1024 px chips | 25 | 0.20 | 0.09 | 0.13 |
+| imagery | detector | precision | recall | F1 | /parcel |
+|---------|----------|----------:|-------:|---:|--------:|
+| **leaf-off** | **RF-DETR** (default) | 0.59 | 0.69 | **0.64** | 2.4 |
+| NAIP | RF-DETR | 0.52 | 0.44 | 0.48 | 2.2 |
+| NAIP | Mask R-CNN | 0.41 | 0.55 | 0.47 | 2.2 |
+| leaf-off | Mask R-CNN | 0.18 | 0.38 | 0.25 | 3.7 |
+| NAIP | YOLOv8m | 0.67 | 0.11 | 0.19 | 2.0 |
 
-Takeaways: the checkpoint was trained at 512 px — larger chips collapse recall,
-and lower confidence only adds false positives, so the defaults stay. Absolute
-numbers undercount reality (Overture merges campus complexes and omits
-garages/sheds that NAIP resolves; matched detections average 0.70 IoU). The
-model is strongest on residential fabric and fragments large institutional
-buildings — the honest fix is fine-tuning (Chapter 5), not parameter tuning.
+Two findings drove the defaults (RF-DETR + Missouri leaf-off imagery):
+
+- **Leaf-off imagery is worth more than model choice.** RF-DETR's recall jumps
+  0.44 → 0.69 once summer canopy stops hiding roofs (see [Imagery](#imagery)).
+- **Match the model to the imagery.** Mask R-CNN was trained on leaf-*on* NAIP,
+  so it over-detects on leaf-off (precision 0.18); RF-DETR (satellite-trained)
+  generalizes and gains. YOLOv8m was eliminated — trained on coarser satellite
+  imagery, it misses almost everything at 0.6 m.
+
+Regularization is tuned separately (`buildingregulariser`): leaf-off residential
+footprints drop from ~13 to ~6 vertices per polygon with <2% area loss, so
+outputs read as clean building outlines rather than stair-stepped masks.
+Absolute F1 still undercounts reality (Overture omits garages/sheds our imagery
+resolves). The next lever is fine-tuning on leaf-off labels (Chapter 5).
 
 ## Versions
 

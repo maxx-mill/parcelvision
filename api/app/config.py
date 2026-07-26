@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
 
-    inference_backend: str = "local_cpu"
+    inference_backend: str = "rfdetr"
     aoi_bbox_limit_km2: float = 1.0
     naip_year: int | None = None
 

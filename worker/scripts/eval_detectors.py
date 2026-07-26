@@ -32,7 +32,6 @@ from shapely.geometry import Polygon, box, shape
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from worker.pipeline.fetch import fetch_imagery  # noqa: E402
 from worker.pipeline.parcels import fetch_parcels  # noqa: E402
 from worker.pipeline.postprocess import postprocess  # noqa: E402
 
@@ -174,11 +173,15 @@ def detect_rfdetr(tif: str) -> gpd.GeoDataFrame:
     return tiled_detect(tif, predict)
 
 
+# YOLOv8m dropped after the first eval (recall 0.11 — resolution mismatch at
+# NAIP 0.6 m). detect_yolov8 stays defined above for reference/reproducibility.
 DETECTORS = {
     "maskrcnn": detect_maskrcnn,
-    "yolov8m": detect_yolov8,
     "rfdetr": detect_rfdetr,
 }
+# Imagery sources to compare. leaf-off is the new default; naip is the leaf-on
+# baseline (cached for residential; commercial unavailable during PC outages).
+IMAGERY = ["mo_leafoff", "naip"]
 
 
 # --------------------------------------------------------------------------- #
@@ -238,15 +241,30 @@ def get_reference(name: str, bbox: list[float]) -> gpd.GeoDataFrame:
     return ref.to_crs(ref.estimate_utm_crs())
 
 
-def get_tiles(name: str, bbox: list[float]) -> list[Path]:
-    """Reuse cached clip_*.tif for the AOI if present, else stream fresh.
-    Lets the eval run when Planetary Computer's STAC API is having an outage."""
-    aoi_dir = CACHE / name
-    cached = sorted(aoi_dir.glob("clip_*.tif"))
-    if cached:
-        print(f"  using {len(cached)} cached tile(s) for {name}")
-        return cached
-    return fetch_imagery(bbox, aoi_dir)
+def get_tiles(name: str, bbox: list[float], source: str) -> list[Path] | None:
+    """Fetch (and cache) the AOI tile for one imagery source. NAIP reuses any
+    cached clip_*.tif so residential still works during a Planetary Computer
+    outage; returns None when a source is unavailable (skip, don't abort)."""
+    from worker.pipeline.fetch import _fetch_mo_leafoff, _fetch_naip
+
+    aoi_dir = CACHE / name / source
+    aoi_dir.mkdir(parents=True, exist_ok=True)
+    existing = sorted(aoi_dir.glob("*.tif"))
+    if existing:
+        return existing
+    # Legacy residential NAIP tiles were cached one level up as clip_*.tif.
+    if source == "naip":
+        legacy = sorted((CACHE / name).glob("clip_*.tif"))
+        if legacy:
+            return legacy
+    try:
+        if source == "mo_leafoff":
+            return _fetch_mo_leafoff(bbox, aoi_dir)
+        if source == "naip":
+            return _fetch_naip(bbox, aoi_dir, None)
+    except Exception as exc:
+        print(f"    ({source} unavailable: {str(exc)[:50]})")
+    return None
 
 
 def main() -> None:
@@ -254,34 +272,42 @@ def main() -> None:
     rows = []
     for name, bbox in AOIS.items():
         try:
-            tiles = get_tiles(name, bbox)
             ref = get_reference(name, bbox)
             parcels = fetch_parcels(bbox).to_crs(ref.crs)
         except Exception as exc:
-            print(f"\n=== AOI {name}: SKIPPED (data fetch failed: {str(exc)[:60]}) ===")
+            print(f"\n=== AOI {name}: SKIPPED (reference/parcels failed: {str(exc)[:60]}) ===")
             continue
-        tif = str(tiles[0])
         print(f"\n=== AOI {name}: {len(ref)} reference buildings, {len(parcels)} parcels ===")
-        for det_name, det in DETECTORS.items():
-            try:
-                raw = det(tif)
-                clean = postprocess(raw, bbox)
-                s = score(clean, ref, parcels)
-                rows.append({"aoi": name, "detector": det_name, **s})
-                print(f"  {det_name:9s} {s}")
-            except Exception as exc:
-                print(f"  {det_name:9s} FAILED: {exc}")
-                traceback.print_exc()
-                rows.append({"aoi": name, "detector": det_name, "error": str(exc)[:80]})
+        for source in IMAGERY:
+            tiles = get_tiles(name, bbox, source)
+            if not tiles:
+                continue
+            tif = str(tiles[0])
+            for det_name, det in DETECTORS.items():
+                try:
+                    clean = postprocess(det(tif), bbox)
+                    s = score(clean, ref, parcels)
+                    rows.append({"aoi": name, "imagery": source, "detector": det_name, **s})
+                    print(f"  {source:11s} {det_name:9s} {s}")
+                except Exception as exc:
+                    print(f"  {source:11s} {det_name:9s} FAILED: {exc}")
+                    traceback.print_exc()
 
-    print("\n================ SUMMARY (per-structure vs Overture) ================")
+    print("\n================ SUMMARY (per-structure vs Overture, IoU>=0.5) ================")
     df = pd.DataFrame(rows)
+    if df.empty or "f1" not in df:
+        print("no successful runs")
+        return
     print(df.to_string(index=False))
-    ok = df[df.get("f1").notna()] if "f1" in df else df
-    if "f1" in df and not ok.empty:
-        agg = ok.groupby("detector")[["precision", "recall", "f1", "per_parcel"]].mean().round(3)
-        print("\nmean across AOIs:")
-        print(agg.sort_values("f1", ascending=False).to_string())
+    print("\nby imagery source (mean):")
+    print(df.groupby("imagery")[["precision", "recall", "f1"]].mean().round(3).to_string())
+    print("\nby detector (mean):")
+    print(
+        df.groupby("detector")[["precision", "recall", "f1", "per_parcel"]]
+        .mean()
+        .round(3)
+        .to_string()
+    )
 
 
 if __name__ == "__main__":

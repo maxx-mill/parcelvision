@@ -34,13 +34,18 @@ def postprocess(gdf: gpd.GeoDataFrame | None, bbox: list[float]) -> gpd.GeoDataF
     if "confidence" not in gdf.columns:
         gdf["confidence"] = None
 
-    # Same engine as geoai.regularize (buildingregulariser), same defaults as
-    # the geoai building-footprint example. Preserves attribute columns.
+    # Regularize raw masks into clean building outlines (buildingregulariser,
+    # the engine geoai.regularize wraps). Params tuned on leaf-off residential
+    # detections (worker/scripts/reg_experiment) to cut small/stair-step edges:
+    # median vertices/polygon 13 -> 6 with <2% area loss. simplify_tolerance
+    # strips pixel stair-stepping before squaring; the higher parallel_threshold
+    # merges near-parallel segments; 45° stays on so L-shaped homes fit without
+    # the orthogonal-only over-shrink (10-14% area loss in testing).
     gdf = regularize_geodataframe(
         gdf,
-        parallel_threshold=1.0,
+        parallel_threshold=2.0,
         simplify=True,
-        simplify_tolerance=0.5,
+        simplify_tolerance=1.0,
         allow_45_degree=True,
         allow_circles=False,  # buildings, not storage tanks
     )
