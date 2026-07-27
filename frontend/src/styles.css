@@ -164,7 +164,8 @@ footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 .maplibregl-popup-tip { border-top-color: var(--bg) !important; }
 .bldg-popup strong { color: var(--accent); }
 .cond { font-weight: 600; }
-.cond-tarp { color: #f43f5e; }
+.cond-damaged { color: #dc2626; }
+.cond-tarp { color: #a855f7; }
 .cond-review { color: #f59e0b; }
 .cond-ok { color: #22d3ee; }
 
@@ -174,7 +175,8 @@ footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
   border: 1px solid var(--line); font-size: 12px;
 }
 .condition-rollup .chip b { display: block; font-size: 15px; }
-.chip.tarp { border-color: #f43f5e; color: #f43f5e; }
+.chip.damaged { border-color: #dc2626; color: #dc2626; }
+.chip.tarp { border-color: #a855f7; color: #a855f7; }
 .chip.review { border-color: #f59e0b; color: #f59e0b; }
 .chip.ok { border-color: var(--accent-dim); color: var(--accent); }
 

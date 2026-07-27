@@ -45,8 +45,8 @@ def run_extraction(job_id: str) -> dict:
 
         status.set_status(engine, job_id, status.VECTORIZING)
         clean = postprocess(raw, bbox)
-        # Ch6: heuristic roof-condition indicators from the source imagery.
-        clean = assess_footprints(clean, rasters)
+        # Ch6: in-domain roof-condition classifier (fetches its own high-res tile).
+        clean = assess_footprints(clean, bbox, rasters)
 
         status.set_status(engine, job_id, status.WRITING_DB)
         count = load_buildings(engine, job_id, clean)

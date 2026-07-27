@@ -19,7 +19,7 @@ def load_buildings(engine: Engine, job_id: str, gdf: gpd.GeoDataFrame) -> int:
     out = gdf.rename_geometry("geom").copy()
     out["job_id"] = [uuid.UUID(job_id)] * len(out)  # UUID objects so psycopg types the column
     cols = ["geom", "job_id", "confidence", "area_sqm"]
-    for c in ("condition", "tarp_fraction", "heterogeneity"):  # Chapter 6, if assessed
+    for c in ("condition", "roof_damage_score", "tarp_fraction", "heterogeneity"):  # Ch6
         if c in out.columns:
             cols.append(c)
     out[cols].to_postgis("buildings", engine, if_exists="append", index=False)

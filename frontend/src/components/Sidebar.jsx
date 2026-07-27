@@ -77,7 +77,7 @@ function ParcelSearch({ onSearch, results, onPick, parcel }) {
   );
 }
 
-const COND_LABEL = { ok: "intact", review: "review", tarp: "tarp" };
+const COND_LABEL = { ok: "intact", review: "review", damaged: "damaged", tarp: "tarp" };
 
 function PropertyReport({ report, jobId }) {
   if (!report) return null;
@@ -119,16 +119,17 @@ function PropertyReport({ report, jobId }) {
 function ConditionRollup({ buildings }) {
   const feats = buildings?.features;
   if (!feats?.length || !feats.some((f) => f.properties?.condition)) return null;
-  const counts = { ok: 0, review: 0, tarp: 0 };
+  const counts = { ok: 0, review: 0, damaged: 0, tarp: 0 };
   for (const f of feats) counts[f.properties.condition ?? "ok"] = (counts[f.properties.condition ?? "ok"] ?? 0) + 1;
   return (
     <>
       <p className="meta muted" style={{ marginTop: 12 }}>
-        Roof condition (heuristic — see notes):
+        Roof condition (in-domain classifier):
       </p>
       <div className="condition-rollup">
         <div className="chip ok"><b>{counts.ok}</b>intact</div>
         <div className="chip review"><b>{counts.review}</b>review</div>
+        <div className="chip damaged"><b>{counts.damaged}</b>damaged</div>
         <div className="chip tarp"><b>{counts.tarp}</b>tarp</div>
       </div>
     </>

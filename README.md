@@ -228,29 +228,45 @@ gives a truer read. The resulting `.pth` drops into the `local_cpu` backend via
 ## Roof condition (Chapter 6)
 
 Parcel-level real-estate intelligence wants a condition signal, not just a
-footprint. There is **no free pretrained aerial roof-damage model and no
-ground-truth condition labels for our area**, so — same discipline as "don't
-detect parcels from pixels" — ParcelVision computes **interpretable heuristic
-indicators**, not a claimed "damage AI". For each footprint we sample its roof
-pixels from the leaf-off imagery and derive:
+footprint. This one earned a real investigation, because **every off-the-shelf
+model failed to transfer to our leaf-off imagery** — validated against a genuine
+damaged AOI (2020 Palm St, north St. Louis City) with visual chip inspection:
 
-- **`tarp_fraction`** — share of roof pixels in the vivid blue-tarp colour range
-  (blue tarps are a standard FEMA/insurer post-storm damage proxy).
-- **`heterogeneity`** — normalized brightness spread; missing shingles, patches,
-  debris and staining raise it above a clean, uniform roof.
-- **`condition`** — a flag: `tarp` > `review` > `ok`.
+| Approach | Result |
+|----------|--------|
+| Colour/brightness heuristic | Too crude — no concept of structural damage |
+| moondream (zero-shot VLM) | Broken on CPU (NaN in generation) |
+| CLIP (zero-shot) | Not grounded — scored a **swimming pool 0.95 "damaged"**; ranking flipped on prompt wording |
+| SegFormer xView2 (supervised, satellite) | Predicted **zero** damage anywhere, even collapsed roofs |
+| RescueNet YOLO (supervised, aerial) | Called **intact campus buildings "damaged,"** missed ~90% of buildings |
 
-Thresholds are **calibrated to flag outliers, not the median roof** (measured on
-the demo AOI: heterogeneity p50 0.35 / p90 0.50 → `review` fires on the top
-~10%; the tarp rule is strict enough that winter's blue-grey cast on ordinary
-roofs scores ~0). On the residential demo that yields 56 intact / 8 review / 0
-tarp — a credible read for an undamaged neighbourhood; the unit tests prove the
-tarp rule still fires on a genuine vivid-blue tarp. Footprints are shaded by
-condition on the map and rolled up in the results panel.
+The two supervised models failed in *opposite* directions — the signature of a
+domain gap (post-disaster satellite/UAV → Missouri leaf-off dereliction), not a
+tuning problem. Same discipline as "don't detect parcels from pixels": none were
+shipped.
 
-**Upgrade path:** a supervised model on labelled data (xBD/xView2 damage levels)
-is the real fix once labels + a GPU are available; the indicators are the
-honest, shippable v1.
+**What works is training on our own imagery.** `worker/scripts/condition_classifier.py`
+trains a ResNet18 on leaf-off roof chips. Clean per-building vacancy labels
+weren't reachable, so labels are **weak geographic supervision** (derelict
+north-St.-Louis-City areas = damaged, intact suburbs = intact). Held-out
+per-building validation on Palm St vs the demo:
+
+- **Palm St (damaged): P(damaged) median 0.97**, and it correctly leaves the
+  *intact* buildings within that block as `ok` — real within-area discrimination.
+- **Demo residential (intact): median 0.18**, and unlike CLIP it scores a
+  **swimming pool 0.00**.
+
+Each footprint gets `roof_damage_score` (classifier P(damaged)) + `tarp_fraction`
+(a complementary colour signal), and a `condition` flag: `tarp` > `damaged` >
+`review` > `ok`. Footprints are shaded by condition on the map, shown in the
+click popup, and rolled up in the results/report panels.
+
+**Honest limitations:** weak labels mean it's strong on *residential* roofs (the
+business target) but **over-flags large flat/institutional roofs** (the demo's 15
+"damaged" are WashU campus buildings, not homes). The eval harness
+(`worker/scripts/validate_damage_clip.py`) scores any approach against Palm St vs
+a normal AOI with visual output. The real accuracy ceiling is clean per-building
+labels (city vacancy/condemned data) + a GPU — the pipeline is ready for them.
 
 ## License
 

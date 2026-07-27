@@ -89,8 +89,8 @@ def get_buildings(job_id: uuid.UUID, session: Session = Depends(get_session)) ->
             Building.confidence,
             Building.area_sqm,
             Building.condition,
+            Building.roof_damage_score,
             Building.tarp_fraction,
-            Building.heterogeneity,
         ).where(Building.job_id == job_id)
     ).all()
     features = [
@@ -102,8 +102,8 @@ def get_buildings(job_id: uuid.UUID, session: Session = Depends(get_session)) ->
                 "confidence": r.confidence,
                 "area_sqm": r.area_sqm,
                 "condition": r.condition,
+                "roof_damage_score": r.roof_damage_score,
                 "tarp_fraction": r.tarp_fraction,
-                "heterogeneity": r.heterogeneity,
             },
         }
         for r in rows

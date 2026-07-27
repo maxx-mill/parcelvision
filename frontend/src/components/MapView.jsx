@@ -124,8 +124,10 @@ export default function MapView({
       const conditionColor = [
         "match",
         ["get", "condition"],
+        "damaged",
+        "#dc2626",
         "tarp",
-        "#f43f5e",
+        "#a855f7",
         "review",
         "#f59e0b",
         "#22d3ee",
@@ -154,14 +156,19 @@ export default function MapView({
         const p = e.features[0]?.properties ?? {};
         const conf = p.confidence != null ? Number(p.confidence).toFixed(2) : "—";
         const area = p.area_sqm != null ? `${Number(p.area_sqm).toLocaleString()} m²` : "—";
-        const labels = { tarp: "⚠ tarp detected", review: "⚠ review", ok: "roof looks intact" };
+        const labels = {
+          damaged: "⚠ likely roof damage",
+          tarp: "⚠ tarp detected",
+          review: "review",
+          ok: "roof looks intact",
+        };
         let cond = "";
         if (p.condition) {
-          const tarp = p.tarp_fraction != null ? `${(p.tarp_fraction * 100).toFixed(0)}% tarp` : "";
-          const het = p.heterogeneity != null ? `irregularity ${Number(p.heterogeneity).toFixed(2)}` : "";
+          const dmg = p.roof_damage_score != null ? `damage score ${Number(p.roof_damage_score).toFixed(2)}` : "";
+          const tarp = p.tarp_fraction > 0.02 ? `${(p.tarp_fraction * 100).toFixed(0)}% tarp` : "";
           cond =
             `<br/><span class="cond cond-${p.condition}">${labels[p.condition] ?? p.condition}</span>` +
-            `<br/><span class="muted">${[tarp, het].filter(Boolean).join(" · ")}</span>`;
+            `<br/><span class="muted">${[dmg, tarp].filter(Boolean).join(" · ")}</span>`;
         }
         new Popup({ closeButton: false, maxWidth: "240px" })
           .setLngLat(e.lngLat)
