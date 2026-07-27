@@ -39,6 +39,25 @@ function StageList({ status }) {
   );
 }
 
+function ConditionRollup({ buildings }) {
+  const feats = buildings?.features;
+  if (!feats?.length || !feats.some((f) => f.properties?.condition)) return null;
+  const counts = { ok: 0, review: 0, tarp: 0 };
+  for (const f of feats) counts[f.properties.condition ?? "ok"] = (counts[f.properties.condition ?? "ok"] ?? 0) + 1;
+  return (
+    <>
+      <p className="meta muted" style={{ marginTop: 12 }}>
+        Roof condition (heuristic — see notes):
+      </p>
+      <div className="condition-rollup">
+        <div className="chip ok"><b>{counts.ok}</b>intact</div>
+        <div className="chip review"><b>{counts.review}</b>review</div>
+        <div className="chip tarp"><b>{counts.tarp}</b>tarp</div>
+      </div>
+    </>
+  );
+}
+
 function RecentJobs({ jobs, activeId, onSelect }) {
   if (!jobs.length) return null;
   return (
@@ -199,6 +218,7 @@ export default function Sidebar({
               <strong>{job.building_count}</strong> footprints · backend {job.backend}
               {job.is_seed && " · precomputed demo"}
             </p>
+            <ConditionRollup buildings={buildings} />
             <div className="exports">
               {EXPORTS.map(([fmt, label]) => (
                 <a key={fmt} className="btn small" href={exportUrl(job.id, fmt)}>

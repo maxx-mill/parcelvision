@@ -11,6 +11,7 @@ from sqlalchemy import text
 from . import config, status
 from .backends import get_backend
 from .db import get_engine
+from .pipeline.condition import assess_footprints
 from .pipeline.fetch import fetch_imagery
 from .pipeline.load import load_buildings
 from .pipeline.parcels import fetch_parcels, upsert_parcels, validate_job
@@ -44,6 +45,8 @@ def run_extraction(job_id: str) -> dict:
 
         status.set_status(engine, job_id, status.VECTORIZING)
         clean = postprocess(raw, bbox)
+        # Ch6: heuristic roof-condition indicators from the source imagery.
+        clean = assess_footprints(clean, rasters)
 
         status.set_status(engine, job_id, status.WRITING_DB)
         count = load_buildings(engine, job_id, clean)

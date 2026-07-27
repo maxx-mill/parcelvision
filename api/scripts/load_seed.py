@@ -57,6 +57,9 @@ def main(path: str) -> None:
                     ),
                     confidence=props.get("confidence"),
                     area_sqm=props.get("area_sqm"),
+                    condition=props.get("condition"),
+                    tarp_fraction=props.get("tarp_fraction"),
+                    heterogeneity=props.get("heterogeneity"),
                 )
             )
         session.commit()

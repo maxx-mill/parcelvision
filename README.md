@@ -4,8 +4,8 @@ Extract building footprints from aerial imagery with computer vision, validate t
 against authoritative county parcel data, and export clean vector data in standard
 GIS formats.
 
-> **Status: Chapters 1–3 done; RF-DETR + leaf-off imagery live; Chapter 5
-> fine-tuning in progress.** See [Roadmap](#roadmap).
+> **Status: Chapters 1–3, 5, 6 done; RF-DETR + Missouri leaf-off imagery live;
+> per-structure roof-condition indicators.** See [Roadmap](#roadmap).
 
 Draw a bounding box on the map → the backend fetches NAIP imagery, runs a pretrained
 segmentation model in an async worker, regularizes the raster masks into clean
@@ -193,8 +193,10 @@ of v6 — imports are named), Vite 8.
 - **Ch. 3 — Parcel validation (done):** St. Louis County parcels streamed into
   PostGIS per-AOI; buildings-per-parcel, footprints crossing parcel lines,
   parcels with no structure — as a map layer and a summary panel.
-- **Ch. 5 — Training story (in progress):** reproducible fine-tune of the
-  building detector on **leaf-off** imagery — see below.
+- **Ch. 5 — Training story:** reproducible fine-tune of the building detector on
+  **leaf-off** imagery — see [Fine-tuning](#fine-tuning-chapter-5).
+- **Ch. 6 — Roof condition (done):** per-structure condition indicators — see
+  [Roof condition](#roof-condition-chapter-6).
 - **Ch. 4 — Roads:** road extraction as a second feature class.
 
 ## Fine-tuning (Chapter 5)
@@ -222,6 +224,33 @@ is parameterized so smoke → full is just arguments. Labels are weak (Overture
 omits some outbuildings), which caps achievable F1 — a hand-labelled test tile
 gives a truer read. The resulting `.pth` drops into the `local_cpu` backend via
 `BuildingFootprintExtractor(model_path=...)`.
+
+## Roof condition (Chapter 6)
+
+Parcel-level real-estate intelligence wants a condition signal, not just a
+footprint. There is **no free pretrained aerial roof-damage model and no
+ground-truth condition labels for our area**, so — same discipline as "don't
+detect parcels from pixels" — ParcelVision computes **interpretable heuristic
+indicators**, not a claimed "damage AI". For each footprint we sample its roof
+pixels from the leaf-off imagery and derive:
+
+- **`tarp_fraction`** — share of roof pixels in the vivid blue-tarp colour range
+  (blue tarps are a standard FEMA/insurer post-storm damage proxy).
+- **`heterogeneity`** — normalized brightness spread; missing shingles, patches,
+  debris and staining raise it above a clean, uniform roof.
+- **`condition`** — a flag: `tarp` > `review` > `ok`.
+
+Thresholds are **calibrated to flag outliers, not the median roof** (measured on
+the demo AOI: heterogeneity p50 0.35 / p90 0.50 → `review` fires on the top
+~10%; the tarp rule is strict enough that winter's blue-grey cast on ordinary
+roofs scores ~0). On the residential demo that yields 56 intact / 8 review / 0
+tarp — a credible read for an undamaged neighbourhood; the unit tests prove the
+tarp rule still fires on a genuine vivid-blue tarp. Footprints are shaded by
+condition on the map and rolled up in the results panel.
+
+**Upgrade path:** a supervised model on labelled data (xBD/xView2 damage levels)
+is the real fix once labels + a GPU are available; the indicators are the
+honest, shippable v1.
 
 ## License
 

@@ -96,17 +96,28 @@ export default function MapView({ basemap, drawMode, aoi, buildings, parcels, on
         },
       });
 
+      // Colour footprints by roof-condition indicator: tarp (red) > review
+      // (amber) > ok (cyan). Falls back to cyan when condition is absent.
+      const conditionColor = [
+        "match",
+        ["get", "condition"],
+        "tarp",
+        "#f43f5e",
+        "review",
+        "#f59e0b",
+        "#22d3ee",
+      ];
       map.addLayer({
         id: "buildings-fill",
         type: "fill",
         source: "buildings",
-        paint: { "fill-color": "#22d3ee", "fill-opacity": 0.35 },
+        paint: { "fill-color": conditionColor, "fill-opacity": 0.4 },
       });
       map.addLayer({
         id: "buildings-line",
         type: "line",
         source: "buildings",
-        paint: { "line-color": "#06b6d4", "line-width": 1.5 },
+        paint: { "line-color": conditionColor, "line-width": 1.5 },
       });
       map.addLayer({
         id: "aoi-line",
@@ -120,11 +131,20 @@ export default function MapView({ basemap, drawMode, aoi, buildings, parcels, on
         const p = e.features[0]?.properties ?? {};
         const conf = p.confidence != null ? Number(p.confidence).toFixed(2) : "—";
         const area = p.area_sqm != null ? `${Number(p.area_sqm).toLocaleString()} m²` : "—";
-        new Popup({ closeButton: false, maxWidth: "220px" })
+        const labels = { tarp: "⚠ tarp detected", review: "⚠ review", ok: "roof looks intact" };
+        let cond = "";
+        if (p.condition) {
+          const tarp = p.tarp_fraction != null ? `${(p.tarp_fraction * 100).toFixed(0)}% tarp` : "";
+          const het = p.heterogeneity != null ? `irregularity ${Number(p.heterogeneity).toFixed(2)}` : "";
+          cond =
+            `<br/><span class="cond cond-${p.condition}">${labels[p.condition] ?? p.condition}</span>` +
+            `<br/><span class="muted">${[tarp, het].filter(Boolean).join(" · ")}</span>`;
+        }
+        new Popup({ closeButton: false, maxWidth: "240px" })
           .setLngLat(e.lngLat)
           .setHTML(
             `<div class="bldg-popup"><strong>Detected building</strong>` +
-              `<br/>confidence ${conf} · ${area}</div>`
+              `<br/>confidence ${conf} · ${area}${cond}</div>`
           )
           .addTo(map);
       });

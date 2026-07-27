@@ -66,6 +66,10 @@ class Building(Base):
     geom: Mapped[object] = mapped_column(Geometry(geometry_type="GEOMETRY", srid=4326))
     confidence: Mapped[float | None] = mapped_column(Float, default=None)
     area_sqm: Mapped[float | None] = mapped_column(Float, default=None)
+    # Chapter 6 — roof condition indicators (heuristic, not a validated model).
+    condition: Mapped[str | None] = mapped_column(String(16), default=None)  # ok|review|tarp
+    tarp_fraction: Mapped[float | None] = mapped_column(Float, default=None)
+    heterogeneity: Mapped[float | None] = mapped_column(Float, default=None)
 
 
 class Parcel(Base):

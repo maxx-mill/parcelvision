@@ -88,6 +88,9 @@ def get_buildings(job_id: uuid.UUID, session: Session = Depends(get_session)) ->
             func.ST_AsGeoJSON(Building.geom).label("geometry"),
             Building.confidence,
             Building.area_sqm,
+            Building.condition,
+            Building.tarp_fraction,
+            Building.heterogeneity,
         ).where(Building.job_id == job_id)
     ).all()
     features = [
@@ -95,7 +98,13 @@ def get_buildings(job_id: uuid.UUID, session: Session = Depends(get_session)) ->
             "type": "Feature",
             "id": r.id,
             "geometry": json.loads(r.geometry),
-            "properties": {"confidence": r.confidence, "area_sqm": r.area_sqm},
+            "properties": {
+                "confidence": r.confidence,
+                "area_sqm": r.area_sqm,
+                "condition": r.condition,
+                "tarp_fraction": r.tarp_fraction,
+                "heterogeneity": r.heterogeneity,
+            },
         }
         for r in rows
     ]
