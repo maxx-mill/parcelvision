@@ -93,6 +93,7 @@ def _export_arcgis(endpoint: str, bbox: list[float], out: Path, image_op: str) -
     from rasterio.transform import from_bounds
     from rasterio.warp import transform_bounds
 
+    out.parent.mkdir(parents=True, exist_ok=True)
     minx, miny, maxx, maxy = transform_bounds("EPSG:4326", "EPSG:3857", *bbox)
     width = min(int(round((maxx - minx) / TARGET_MPP)), MAX_PX)
     height = min(int(round((maxy - miny) / TARGET_MPP)), MAX_PX)

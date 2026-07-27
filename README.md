@@ -4,7 +4,8 @@ Extract building footprints from aerial imagery with computer vision, validate t
 against authoritative county parcel data, and export clean vector data in standard
 GIS formats.
 
-> **Status: Chapter 1 (MVP) — working end to end.** See [Roadmap](#roadmap).
+> **Status: Chapters 1–3 done; RF-DETR + leaf-off imagery live; Chapter 5
+> fine-tuning in progress.** See [Roadmap](#roadmap).
 
 Draw a bounding box on the map → the backend fetches NAIP imagery, runs a pretrained
 segmentation model in an async worker, regularizes the raster masks into clean
@@ -192,10 +193,35 @@ of v6 — imports are named), Vite 8.
 - **Ch. 3 — Parcel validation (done):** St. Louis County parcels streamed into
   PostGIS per-AOI; buildings-per-parcel, footprints crossing parcel lines,
   parcels with no structure — as a map layer and a summary panel.
+- **Ch. 5 — Training story (in progress):** reproducible fine-tune of the
+  building detector on **leaf-off** imagery — see below.
 - **Ch. 4 — Roads:** road extraction as a second feature class.
-- **Ch. 5 — Training story:** reproducible fine-tuning notebook (geoai training
-  utilities on SpaceNet/Inria or `giswqs/geospatial`), IoU/mAP vs the pretrained
-  baseline.
+
+## Fine-tuning (Chapter 5)
+
+The eval showed the pretrained Mask R-CNN, trained on leaf-*on* NAIP, degrades on
+our leaf-*off* imagery. `notebooks/train_building_model.ipynb` (and the headless
+`worker/scripts/finetune_buildings.py`) close that gap by retraining on the
+imagery we actually deploy on:
+
+1. **prepare** — fetch Missouri leaf-off orthoimagery over a training region
+   (grid of ArcGIS exports) + Overture footprints as labels, then
+   `geoai.export_geotiff_tiles` into aligned image/label tiles.
+2. **train** — fine-tune Mask R-CNN from COCO-pretrained weights
+   (`geoai.train_MaskRCNN_model`).
+3. **evaluate** — score the fine-tuned checkpoint vs the pretrained baseline on a
+   held-out leaf-off AOI (per-structure precision/recall/F1).
+
+```sh
+# proves the pipeline end to end (few tiles, 2 epochs) — CPU-friendly
+docker compose run --rm --no-deps worker python scripts/finetune_buildings.py --smoke
+```
+
+Mask R-CNN fine-tuning wants a GPU for a real run (`--epochs 100`); the pipeline
+is parameterized so smoke → full is just arguments. Labels are weak (Overture
+omits some outbuildings), which caps achievable F1 — a hand-labelled test tile
+gives a truer read. The resulting `.pth` drops into the `local_cpu` backend via
+`BuildingFootprintExtractor(model_path=...)`.
 
 ## License
 
