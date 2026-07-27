@@ -23,6 +23,13 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:3000"
 
+    # Parcel lookup (Chapter 7) — same county ArcGIS service the worker validates against.
+    parcel_service_url: str = (
+        "https://maps.stlouisco.com/hosting/rest/services/Maps/AGS_Parcels/MapServer/0"
+    )
+    parcel_locator_field: str = "LOCATOR"
+    parcel_address_field: str = "PROP_ADD"
+
     @field_validator("naip_year", mode="before")
     @classmethod
     def _blank_env_is_none(cls, v: object) -> object:

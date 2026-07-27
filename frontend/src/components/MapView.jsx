@@ -59,7 +59,15 @@ const PARCEL_FILL = [
   "#22c55e",
 ];
 
-export default function MapView({ basemap, drawMode, aoi, buildings, parcels, onBBoxDrawn }) {
+export default function MapView({
+  basemap,
+  drawMode,
+  aoi,
+  buildings,
+  parcels,
+  selectedParcel,
+  onBBoxDrawn,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const readyRef = useRef(false);
@@ -76,7 +84,22 @@ export default function MapView({ basemap, drawMode, aoi, buildings, parcels, on
     map.on("load", () => {
       map.addSource("aoi", { type: "geojson", data: EMPTY });
       map.addSource("parcels", { type: "geojson", data: EMPTY });
+      map.addSource("selparcel", { type: "geojson", data: EMPTY });
       map.addSource("buildings", { type: "geojson", data: EMPTY });
+
+      // The parcel the user picked (Chapter 7) — a bright highlight under all.
+      map.addLayer({
+        id: "selparcel-fill",
+        type: "fill",
+        source: "selparcel",
+        paint: { "fill-color": "#a855f7", "fill-opacity": 0.12 },
+      });
+      map.addLayer({
+        id: "selparcel-line",
+        type: "line",
+        source: "selparcel",
+        paint: { "line-color": "#a855f7", "line-width": 2.5 },
+      });
 
       // Parcels sit UNDER the detected footprints so both read at once.
       map.addLayer({
@@ -194,6 +217,23 @@ export default function MapView({ basemap, drawMode, aoi, buildings, parcels, on
       map.getSource("aoi").setData(aoi ? bboxToPolygon(aoi) : EMPTY);
     });
   }, [aoi]);
+
+  // Selected parcel highlight (Chapter 7) + zoom to it.
+  useEffect(() => {
+    const map = mapRef.current;
+    whenReady(readyRef, map, () => {
+      if (!selectedParcel) {
+        map.getSource("selparcel").setData(EMPTY);
+        return;
+      }
+      map.getSource("selparcel").setData({ type: "Feature", geometry: selectedParcel });
+      const b = new LngLatBounds();
+      const rings =
+        selectedParcel.type === "Polygon" ? [selectedParcel.coordinates] : selectedParcel.coordinates;
+      for (const poly of rings) for (const pt of poly[0]) b.extend(pt);
+      map.fitBounds(b, { padding: 120, duration: 600, maxZoom: 19 });
+    });
+  }, [selectedParcel]);
 
   // Parcel validation layer
   useEffect(() => {

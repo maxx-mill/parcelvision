@@ -29,3 +29,13 @@ export const exportUrl = (id, format) => `/api/jobs/${id}/export?format=${format
 export const startValidation = async (id) =>
   json(await fetch(`/api/jobs/${id}/validate`, { method: "POST" }));
 export const getValidation = async (id) => json(await fetch(`/api/jobs/${id}/validation`));
+
+// Chapter 7 — parcel-first workflow
+export const searchParcels = async (q) =>
+  json(await fetch(`/api/parcels/search?q=${encodeURIComponent(q)}&limit=8`));
+export const parcelAt = async (lon, lat) =>
+  json(await fetch(`/api/parcels/at?lon=${lon}&lat=${lat}`));
+export const getReport = async (id, locator) =>
+  json(await fetch(`/api/jobs/${id}/report?locator=${encodeURIComponent(locator)}`));
+export const reportUrl = (id, locator) =>
+  `/api/jobs/${id}/report?locator=${encodeURIComponent(locator)}`;

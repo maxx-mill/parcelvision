@@ -1,4 +1,5 @@
-import { exportUrl } from "../api.js";
+import { useState } from "react";
+import { exportUrl, reportUrl } from "../api.js";
 
 const STAGES = [
   ["queued", "Queued"],
@@ -36,6 +37,82 @@ function StageList({ status }) {
         );
       })}
     </ol>
+  );
+}
+
+function ParcelSearch({ onSearch, results, onPick, parcel }) {
+  const [q, setQ] = useState("");
+  const submit = (e) => {
+    e.preventDefault();
+    if (q.trim().length >= 3) onSearch(q.trim());
+  };
+  return (
+    <section>
+      <h2>Find a parcel</h2>
+      <form onSubmit={submit} className="parcel-search">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search address, e.g. 10946 Brookings"
+        />
+        <button className="btn small" type="submit" disabled={q.trim().length < 3}>
+          Search
+        </button>
+      </form>
+      {results && (
+        <ul className="parcel-results">
+          {results.length === 0 && <li className="muted">No parcels found.</li>}
+          {results.map((p) => (
+            <li key={p.locator}>
+              <button className="parcelrow" onClick={() => onPick(p)}>
+                <span className="addr">{p.address || "(no address)"}</span>
+                <span className="loc">{p.locator}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="fineprint">Or draw an area below. Selected: {parcel ? parcel.address : "none"}.</p>
+    </section>
+  );
+}
+
+const COND_LABEL = { ok: "intact", review: "review", tarp: "tarp" };
+
+function PropertyReport({ report, jobId }) {
+  if (!report) return null;
+  const { parcel, structures, summary } = report;
+  return (
+    <section className="report">
+      <h2>Property report</h2>
+      <p className="meta">
+        <strong>{parcel.address || parcel.locator}</strong>
+        <br />
+        <span className="muted">Parcel {parcel.locator}</span>
+      </p>
+      <div className="report-stats">
+        <div><b>{summary.structure_count}</b>structures</div>
+        <div><b>{Math.round(summary.total_building_area_sqm).toLocaleString()}</b>m² roof</div>
+        <div className={`worst-${summary.worst_condition}`}>
+          <b>{COND_LABEL[summary.worst_condition]}</b>worst roof
+        </div>
+      </div>
+      {summary.any_crossing && (
+        <p className="warn">⚠ a footprint crosses the parcel boundary</p>
+      )}
+      <ul className="structure-list">
+        {structures.map((s, i) => (
+          <li key={i}>
+            <span className={`cond cond-${s.condition || "ok"}`}>●</span>
+            {Math.round(s.area_sqm || 0).toLocaleString()} m²
+            <span className="muted"> · {COND_LABEL[s.condition] || s.condition || "ok"}</span>
+          </li>
+        ))}
+      </ul>
+      <a className="btn small" href={reportUrl(jobId, parcel.locator)} download={`report_${parcel.locator}.json`}>
+        Export report (JSON)
+      </a>
+    </section>
   );
 }
 
@@ -165,6 +242,11 @@ export default function Sidebar({
   basemap,
   onBasemap,
   validation,
+  onParcelSearch,
+  parcelResults,
+  onPickParcel,
+  parcel,
+  report,
 }) {
   const running = job && job.status !== "done" && job.status !== "failed";
   const area = aoi ? bboxAreaKm2(aoi) : null;
@@ -177,10 +259,12 @@ export default function Sidebar({
           <h1>ParcelVision</h1>
         </div>
         <p className="tagline">
-          Building footprints from NAIP aerial imagery — extracted with CV, regularized, stored in
-          PostGIS, exportable.
+          Find a parcel, detect its structures from leaf-off aerial imagery, and read a
+          property report — building footprints, roof condition, parcel validation.
         </p>
       </header>
+
+      <ParcelSearch onSearch={onParcelSearch} results={parcelResults} onPick={onPickParcel} parcel={parcel} />
 
       <section>
         <h2>1 · Area of interest</h2>
@@ -189,16 +273,16 @@ export default function Sidebar({
         </button>
         {aoi && (
           <p className="meta">
-            {aoi.map((v) => v.toFixed(4)).join(", ")}
-            <br />≈ {area.toFixed(2)} km²{area > 1 && " — over the 1 km² demo cap"}
+            {parcel ? `Parcel ${parcel.locator} · ${parcel.address}` : aoi.map((v) => v.toFixed(4)).join(", ")}
+            <br />≈ {area.toFixed(2)} km²{area > 1 && " — over the 1 km² cap; draw/pick a smaller area"}
           </p>
         )}
       </section>
 
       <section>
-        <h2>2 · Extract</h2>
+        <h2>2 · {parcel ? "Analyze parcel" : "Extract"}</h2>
         <button className="btn primary" onClick={onExtract} disabled={!aoi || running}>
-          {running ? "Working…" : "Extract buildings"}
+          {running ? "Working…" : parcel ? "Analyze this parcel" : "Extract buildings"}
         </button>
         {running && (
           <button className="btn ghost cancel" onClick={onCancel}>
@@ -230,10 +314,12 @@ export default function Sidebar({
           </>
         ) : (
           <p className="meta muted">
-            {buildings ? "" : "Run an extraction, or load the precomputed demo below."}
+            {buildings ? "" : "Find a parcel above, or draw an area, then analyze."}
           </p>
         )}
       </section>
+
+      {parcel && job?.status === "done" && <PropertyReport report={report} jobId={job.id} />}
 
       <RecentJobs jobs={recentJobs} activeId={job?.id} onSelect={onSelectJob} />
 

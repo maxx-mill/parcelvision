@@ -177,3 +177,36 @@ footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 .chip.tarp { border-color: #f43f5e; color: #f43f5e; }
 .chip.review { border-color: #f59e0b; color: #f59e0b; }
 .chip.ok { border-color: var(--accent-dim); color: var(--accent); }
+
+/* Chapter 7 — parcel search + property report */
+.parcel-search { display: flex; gap: 6px; }
+.parcel-search input {
+  flex: 1; min-width: 0; padding: 8px 10px; font-size: 13px;
+  background: var(--bg-soft); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.parcel-search input::placeholder { color: var(--muted); }
+.parcel-results { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 3px; }
+.parcelrow {
+  display: flex; flex-direction: column; align-items: flex-start; width: 100%;
+  padding: 7px 9px; background: transparent; border: 1px solid var(--line);
+  border-radius: 7px; color: var(--text); cursor: pointer; text-align: left;
+}
+.parcelrow:hover { border-color: var(--accent); }
+.parcelrow .addr { font-size: 13px; }
+.parcelrow .loc { font-size: 11px; color: var(--muted); font-family: Consolas, monospace; }
+
+.report { border: 1px solid var(--accent-dim); border-radius: 10px; padding: 12px; background: rgba(168,85,247,0.06); }
+.report-stats { display: flex; gap: 8px; margin-top: 10px; }
+.report-stats > div {
+  flex: 1; text-align: center; padding: 8px 4px; border-radius: 8px;
+  border: 1px solid var(--line); font-size: 11px; color: var(--muted);
+}
+.report-stats b { display: block; font-size: 16px; color: var(--text); }
+.report-stats .worst-tarp b { color: #f43f5e; }
+.report-stats .worst-review b { color: #f59e0b; }
+.report-stats .worst-ok b { color: #22d3ee; }
+.report .warn { color: #f59e0b; font-size: 12px; margin: 10px 0 0; }
+.structure-list { list-style: none; padding: 0; margin: 10px 0; max-height: 160px; overflow-y: auto; font-size: 12.5px; }
+.structure-list li { padding: 3px 0; }
+.structure-list .cond { margin-right: 6px; }

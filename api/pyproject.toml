@@ -19,6 +19,8 @@ dependencies = [
     "geopandas==1.1.4",
     "pyogrio==0.13.0",
     "shapely==2.1.2",
+    # Parcel lookup (Chapter 7) proxies the county ArcGIS REST service.
+    "requests==2.34.2",
 ]
 
 [project.optional-dependencies]
