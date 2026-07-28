@@ -245,25 +245,31 @@ domain gap (post-disaster satellite/UAV → Missouri leaf-off dereliction), not 
 tuning problem. Same discipline as "don't detect parcels from pixels": none were
 shipped.
 
-**What works is training on our own imagery.** `worker/scripts/condition_classifier.py`
-trains a ResNet18 on leaf-off roof chips. Clean per-building vacancy labels
-weren't reachable, so labels are **weak geographic supervision** (derelict
-north-St.-Louis-City areas = damaged, intact suburbs = intact). Held-out
-per-building validation on Palm St vs the demo:
+**What works is training on our own imagery.** A ResNet18 on leaf-off roof
+chips. v3 used **weak geographic labels** (derelict areas = damaged, suburbs =
+intact) and under-called obvious damage; **v4** uses ~120 **hand-labelled** 0.15 m
+chips + augmentation (`worker/scripts/make_label_pool.py` builds the montages,
+`train_condition_v4.py` trains) and is markedly crisper. Held-out per-building
+validation on Palm St vs the demo:
 
-- **Palm St (damaged): P(damaged) median 0.97**, and it correctly leaves the
-  *intact* buildings within that block as `ok` — real within-area discrimination.
-- **Demo residential (intact): median 0.18**, and unlike CLIP it scores a
-  **swimming pool 0.00**.
+| P(damaged) median | v3 | **v4** |
+|---|---|---|
+| Palm St (damaged) | 0.97 | **1.00** |
+| demo residential (intact) | 0.18 | **0.02** |
+
+v4 correctly leaves the *intact* buildings within the Palm St block at `0.00`
+(real within-area discrimination) and, unlike CLIP, scores a **swimming pool
+0.00**.
 
 Each footprint gets `roof_damage_score` (classifier P(damaged)) + `tarp_fraction`
 (a complementary colour signal), and a `condition` flag: `tarp` > `damaged` >
 `review` > `ok`. Footprints are shaded by condition on the map, shown in the
 click popup, and rolled up in the results/report panels.
 
-**Honest limitations:** weak labels mean it's strong on *residential* roofs (the
-business target) but **over-flags large flat/institutional roofs** (the demo's 15
-"damaged" are WashU campus buildings, not homes). The eval harness
+**Honest limitations:** it's strong on *residential* roofs (the business target)
+but still **over-flags large flat/institutional roofs** (the demo AOI straddles
+the WashU campus, so its "damaged" count is mostly campus buildings, not homes).
+The eval harness
 (`worker/scripts/validate_damage_clip.py`) scores any approach against Palm St vs
 a normal AOI with visual output. The real accuracy ceiling is clean per-building
 labels (city vacancy/condemned data) + a GPU — the pipeline is ready for them.

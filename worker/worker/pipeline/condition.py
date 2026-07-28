@@ -1,19 +1,24 @@
-"""Stage 3.5: per-structure roof condition (Chapter 6 — damage v3, in-domain).
+"""Stage 3.5: per-structure roof condition (Chapter 6 — damage v4, in-domain).
 
-Now driven by an IN-DOMAIN classifier: a ResNet18 trained on leaf-off roof chips
-(worker/scripts/condition_classifier.py). Off-the-shelf models (CLIP, xView2
-SegFormer, RescueNet YOLO) all failed to transfer to our imagery — a classifier
-trained on our OWN imagery cleanly separates held-out damaged (2020 Palm St,
-P(damaged) median 0.97) from intact (demo, 0.18), and unlike CLIP isn't fooled
-by swimming pools. Labels are weak geographic supervision (derelict north-St.
-Louis-City vs intact suburbs), so it's strong on residential roofs but can
-over-flag large flat/institutional roofs — framed honestly, not a certified
-inspection.
+Off-the-shelf models (CLIP, xView2 SegFormer, RescueNet YOLO) all failed to
+transfer to our imagery, so we train an IN-DOMAIN ResNet18 on leaf-off roof
+chips. v3 used weak geographic labels and under-called obvious damage; v4
+(worker/scripts/{make_label_pool,train_condition_v4}.py) uses ~120 HAND-labelled
+0.15 m chips + augmentation and is markedly crisper. Held-out per-building
+validation, 2020 Palm St (damaged) vs the demo (intact):
+
+  P(damaged) median   v3 -> v4
+  Palm damaged        0.97 -> 1.00   (and intact buildings WITHIN Palm -> 0.00)
+  demo intact         0.18 -> 0.02
+
+It's strong on residential roofs (the business target) and, unlike CLIP, scores
+a swimming pool 0.00. It still over-flags large flat/institutional roofs (a
+campus building is not a house) — framed honestly, not a certified inspection.
 
 Per footprint we record roof_damage_score (classifier P(damaged)) and
 tarp_fraction (an unambiguous complementary colour signal), and a condition
 flag: tarp > damaged > review > ok. The chip crop needs higher resolution than
-the detection imagery, so this stage fetches its own ~0.3 m leaf-off tile.
+the detection imagery, so this stage fetches its own ~0.15 m leaf-off tile.
 """
 
 import logging
@@ -26,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "roof_condition_resnet18.pt"
 CHIP_PX = 128
-CHIP_MPP = 0.3  # match the resolution the classifier was trained at
+CHIP_MPP = 0.15  # native leaf-off res; matches the v4 classifier's training chips
 
 # Condition thresholds on classifier P(damaged). Calibrated on held-out eval
 # (intact demo median 0.18, damaged Palm St median 0.97).
