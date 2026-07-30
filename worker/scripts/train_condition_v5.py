@@ -36,6 +36,7 @@ import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 from PIL import Image  # noqa: E402
+from scripts.pool_lib import building_tiles, iter_buildings  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
     average_precision_score,
     confusion_matrix,
@@ -43,8 +44,6 @@ from sklearn.metrics import (  # noqa: E402
 )
 from sklearn.model_selection import GroupKFold  # noqa: E402
 from torchvision import models, transforms  # noqa: E402
-
-from scripts.pool_lib import building_tiles, iter_buildings  # noqa: E402
 from worker.pipeline.roof_chip import CHIP_MPP, CHIP_PX  # noqa: E402
 
 POOL = Path("/data/imagery/label_pool")
@@ -255,7 +254,6 @@ def main():
     report = {"cv": cv_metrics, "temp": temp}
     import geoai
     import geopandas as gpd
-
     from scripts.pool_lib import hires
     from worker.pipeline.roof_chip import roof_tiles
 

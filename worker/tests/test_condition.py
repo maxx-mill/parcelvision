@@ -1,5 +1,4 @@
 import numpy as np
-
 from worker.pipeline.condition import flag, tarp_fraction
 
 

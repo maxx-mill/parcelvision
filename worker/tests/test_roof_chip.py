@@ -6,7 +6,6 @@ pytest.importorskip("affine")
 
 from affine import Affine  # noqa: E402
 from shapely.geometry import box  # noqa: E402
-
 from worker.pipeline.roof_chip import (  # noqa: E402
     CHIP_PX,
     MEAN_RGB,

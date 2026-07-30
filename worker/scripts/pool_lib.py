@@ -23,7 +23,6 @@ import requests  # noqa: E402
 from PIL import Image  # noqa: E402
 from rasterio.transform import from_bounds, rowcol  # noqa: E402
 from rasterio.warp import transform_bounds  # noqa: E402
-
 from worker.pipeline.roof_chip import roof_tiles  # noqa: E402
 
 POOL = Path("/data/imagery/label_pool")

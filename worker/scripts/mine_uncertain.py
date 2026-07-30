@@ -25,9 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
-from torchvision import models, transforms  # noqa: E402
-
 from scripts.pool_lib import building_tiles, iter_buildings  # noqa: E402
+from torchvision import models, transforms  # noqa: E402
 
 POOL = Path("/data/imagery/label_pool")
 CKPT = Path("/data/imagery/condition_v5/roof_condition_resnet18.pt")
