@@ -17,11 +17,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from worker import config  # noqa: E402
 from worker.backends import get_backend  # noqa: E402
+from worker.pipeline.condition import assess_footprints  # noqa: E402
 from worker.pipeline.fetch import fetch_imagery  # noqa: E402
 from worker.pipeline.postprocess import postprocess  # noqa: E402
-
-from worker import config  # noqa: E402
 
 # ~0.25 km² residential block in Clayton / University City, St. Louis County.
 DEMO_BBOX = [-90.3167, 38.6465, -90.3111, 38.6501]
@@ -32,6 +32,8 @@ def main(out_path: str) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         rasters = fetch_imagery(DEMO_BBOX, Path(tmp)) if backend.needs_imagery else []
         gdf = postprocess(backend.extract(rasters, DEMO_BBOX), DEMO_BBOX)
+        # Ch6: attach v5 roof-condition columns so the seed matches the pipeline.
+        gdf = assess_footprints(gdf, DEMO_BBOX, rasters)
 
     fc = json.loads(gdf.to_json())
     fc["bbox"] = DEMO_BBOX

@@ -245,34 +245,48 @@ domain gap (post-disaster satellite/UAV → Missouri leaf-off dereliction), not 
 tuning problem. Same discipline as "don't detect parcels from pixels": none were
 shipped.
 
-**What works is training on our own imagery.** A ResNet18 on leaf-off roof
-chips. v3 used **weak geographic labels** (derelict areas = damaged, suburbs =
-intact) and under-called obvious damage; **v4** uses ~120 **hand-labelled** 0.15 m
-chips + augmentation (`worker/scripts/make_label_pool.py` builds the montages,
-`train_condition_v4.py` trains) and is markedly crisper. Held-out per-building
-validation on Palm St vs the demo:
+**What works is training on our own imagery** — a ResNet18 on leaf-off roof
+chips, refined across several iterations. v3 used **weak geographic labels**;
+**v4** hand-labelled ~120 chips. But v4 cropped each footprint's bbox and
+**resized it to 128 px**, so texture scale varied with building size and the
+model shortcut-learned "big squashed roof ≈ damaged" — it over-flagged large
+flat/institutional roofs (**22 of 64** demo buildings, mostly WashU campus). Its
+clean "Palm 1.00 / demo 0.02" numbers were really *separating two
+neighbourhoods*, not damage.
 
-| P(damaged) median | v3 | **v4** |
+**v5 rebuilds the classifier around that failure,** applying the building-damage
+and shortcut-learning literature (`worker/scripts/train_condition_v5.py`):
+
+| Technique | Why |
+|-----------|-----|
+| **Fixed-GSD, polygon-masked, multi-scale chips** — shared by train **and** inference (`worker/pipeline/roof_chip.py`) | every tile covers a constant 19.2 m of ground, so roof texture is at an invariant scale; big roofs are tiled and averaged. Kills the scale shortcut. |
+| **Focal loss** (inverse-frequency α) | the xBD-winner recipe for a rare damaged class |
+| **Strong augmentation** — scale-jitter, rotation, `RandomErasing` | the biggest lever on texture bias |
+| **D4 test-time augmentation** + **temperature scaling** | 8-orientation averaging (top-down roofs are rotation-arbitrary) + calibrated `P(damaged)` |
+| **Active learning** — uncertainty + hard-negative mining (`mine_uncertain.py`) | v5's first 120 labels were all north-city, so it was out-of-distribution (~0.5) on suburbs; mining surfaced 60 intact suburban/commercial roofs to label → **180 labels** |
+
+Evaluation is honest now — **grouped k-fold CV** (a building's tiles never split
+across folds) plus a held-out cross-neighbourhood check (Palm St damaged vs the
+demo intact):
+
+| | v4 | **v5** |
 |---|---|---|
-| Palm St (damaged) | 0.97 | **1.00** |
-| demo residential (intact) | 0.18 | **0.02** |
+| demo institutional false-"damaged" (of 64) | 22 | **3** |
+| held-out balanced accuracy (damaged vs intact) | — *(neighbourhood overfit)* | **0.81** |
+| calibrated + cross-validated | no | **yes** |
 
-v4 correctly leaves the *intact* buildings within the Palm St block at `0.00`
-(real within-area discrimination) and, unlike CLIP, scores a **swimming pool
-0.00**.
+Each footprint gets `roof_damage_score` (calibrated, TTA'd, tile-averaged
+P(damaged)) + `tarp_fraction`, and a `condition` flag: `tarp` > `damaged` >
+`review` > `ok`, thresholded on the actual held-out score distribution
+(intact p50 ≈ 0.38, damaged p50 ≈ 0.64). Footprints are shaded by condition on
+the map, shown in the click popup, and rolled up in the results/report panels.
 
-Each footprint gets `roof_damage_score` (classifier P(damaged)) + `tarp_fraction`
-(a complementary colour signal), and a `condition` flag: `tarp` > `damaged` >
-`review` > `ok`. Footprints are shaded by condition on the map, shown in the
-click popup, and rolled up in the results/report panels.
-
-**Honest limitations:** it's strong on *residential* roofs (the business target)
-but still **over-flags large flat/institutional roofs** (the demo AOI straddles
-the WashU campus, so its "damaged" count is mostly campus buildings, not homes).
-The eval harness
-(`worker/scripts/validate_damage_clip.py`) scores any approach against Palm St vs
-a normal AOI with visual output. The real accuracy ceiling is clean per-building
-labels (city vacancy/condemned data) + a GPU — the pipeline is ready for them.
+**Honest limitations:** the damaged class is only 45 examples from a *single*
+neighbourhood, so class separation is modest (balanced accuracy ~0.81, not 0.95);
+the **`review` band is genuine model uncertainty** surfaced for a human, not a
+confident call. The real ceiling is more geographically-diverse damaged labels
+(the `mine_uncertain.py` active-learning loop is built for exactly this) + a GPU —
+the pipeline is ready for both.
 
 ## License
 

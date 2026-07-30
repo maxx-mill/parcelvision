@@ -1,24 +1,35 @@
-"""Stage 3.5: per-structure roof condition (Chapter 6 — damage v4, in-domain).
+"""Stage 3.5: per-structure roof condition (Chapter 6 — damage v5, in-domain).
 
 Off-the-shelf models (CLIP, xView2 SegFormer, RescueNet YOLO) all failed to
 transfer to our imagery, so we train an IN-DOMAIN ResNet18 on leaf-off roof
-chips. v3 used weak geographic labels and under-called obvious damage; v4
-(worker/scripts/{make_label_pool,train_condition_v4}.py) uses ~120 HAND-labelled
-0.15 m chips + augmentation and is markedly crisper. Held-out per-building
-validation, 2020 Palm St (damaged) vs the demo (intact):
+chips. v5 keeps that idea but adopts a research-backed recipe (see
+worker/scripts/train_condition_v5.py):
 
-  P(damaged) median   v3 -> v4
-  Palm damaged        0.97 -> 1.00   (and intact buildings WITHIN Palm -> 0.00)
-  demo intact         0.18 -> 0.02
+  * Fixed-GSD, polygon-masked, multi-scale chips (worker.pipeline.roof_chip),
+    identical at train + inference. v4 cropped each footprint's bbox and resized
+    to 128 px, so texture scale varied with building size and the model
+    shortcut-learned "big squashed roof == damaged" — the institutional
+    false-positive bug. Now every tile covers a constant 19.2 m of ground; big
+    roofs are tiled and their per-tile scores averaged.
+  * Focal loss + strong augmentation (scale-jitter, rotation, RandomErasing).
+  * D4 test-time augmentation (8 orientations; top-down roofs are rotation-
+    arbitrary) + temperature-scaled, calibrated P(damaged).
+  * Active learning: v5's first 120 labels were all north-city, so the model was
+    out-of-distribution (~0.5) on suburban roofs. Uncertainty + hard-negative
+    (big-roof) mining surfaced 60 intact suburban/commercial roofs to label,
+    giving 180 labels (45 damaged / 135 intact).
 
-It's strong on residential roofs (the business target) and, unlike CLIP, scores
-a swimming pool 0.00. It still over-flags large flat/institutional roofs (a
-campus building is not a house) — framed honestly, not a certified inspection.
+Honest held-out numbers (grouped 4-fold CV + Palm St vs demo): building-level
+best-separating balanced accuracy ~0.81; recalibrating from v4 to v5 cuts the
+demo's institutional false-"damaged" from 22 -> 3 (of 64). The residual "review"
+band is genuine model uncertainty, not false confidence — a hard problem on a
+single leaf-off image with 45 damaged examples from one neighbourhood.
 
-Per footprint we record roof_damage_score (classifier P(damaged)) and
-tarp_fraction (an unambiguous complementary colour signal), and a condition
-flag: tarp > damaged > review > ok. The chip crop needs higher resolution than
-the detection imagery, so this stage fetches its own ~0.15 m leaf-off tile.
+Per footprint we record roof_damage_score (mean per-tile P(damaged)) and
+tarp_fraction (an unambiguous complementary colour signal over masked roof
+pixels), and a condition flag: tarp > damaged > review > ok. The chip crop
+needs higher resolution than the detection imagery, so this stage fetches its
+own ~0.15 m leaf-off tile.
 """
 
 import logging
@@ -33,10 +44,12 @@ MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "roof_condition_re
 CHIP_PX = 128
 CHIP_MPP = 0.15  # native leaf-off res; matches the v4 classifier's training chips
 
-# Condition thresholds on classifier P(damaged). Calibrated on held-out eval
-# (intact demo median 0.18, damaged Palm St median 0.97).
+# Condition thresholds on the calibrated (temperature-scaled, D4-TTA) P(damaged).
+# Chosen from the held-out score distributions — intact demo p50=0.38, damaged
+# Palm St p50=0.64, best separating cut ~0.57 (balanced acc 0.81). DAMAGED is set
+# high for precision (only 5% of intact demo reaches it); REVIEW catches the rest.
 DAMAGED_SCORE = 0.60
-REVIEW_SCORE = 0.35
+REVIEW_SCORE = 0.50
 
 # Blue-tarp colour rule (0-255 RGB) — strict so winter's blue-grey cast on
 # ordinary roofs scores ~0; kept as an unambiguous complementary signal.
@@ -73,20 +86,30 @@ def flag(score: float | None, tarp_frac: float) -> str:
 
 
 _model = None
+_temperature = 1.0
+CONDITION_TTA = os.environ.get("CONDITION_TTA", "1") != "0"
 
 
 def _load_model():
-    global _model
+    """Load the v5 checkpoint {state_dict, temperature, ...}. Backward compatible
+    with a bare state_dict (older v4 file) -> temperature 1.0."""
+    global _model, _temperature
     if _model is None:
         import torch
         from torchvision import models
 
+        ckpt = torch.load(MODEL_PATH, map_location="cpu")
         net = models.resnet18(weights=None)
         net.fc = torch.nn.Linear(net.fc.in_features, 2)
-        net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+        if isinstance(ckpt, dict) and "state_dict" in ckpt:
+            net.load_state_dict(ckpt["state_dict"])
+            _temperature = float(ckpt.get("temperature", 1.0))
+        else:
+            net.load_state_dict(ckpt)
+            _temperature = 1.0
         net.eval()
         _model = net
-    return _model
+    return _model, _temperature
 
 
 def _fetch_hires(bbox: list[float]) -> tuple[np.ndarray, object] | None:
@@ -139,7 +162,7 @@ def assess_footprints(gdf, bbox: list[float], raster_paths=None):
         return gdf
     try:
         fetched = _fetch_hires(bbox)
-        model = _load_model()
+        model, temp = _load_model()
     except Exception as exc:  # noqa: BLE001 — condition is best-effort
         logger.warning("condition skipped (%s); defaulting to ok", exc)
         for k, v in DEFAULT.items():
@@ -151,33 +174,46 @@ def assess_footprints(gdf, bbox: list[float], raster_paths=None):
         return gdf
 
     import torch
-    from PIL import Image
-    from rasterio.transform import rowcol
+    import torch.nn.functional as F
     from torchvision import transforms
 
+    from worker.pipeline.roof_chip import masked_roof_pixels, roof_tiles
+
     arr, transform = fetched
-    H, W, _ = arr.shape
     norm = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
     )
+
+    def tile_p(chips: list) -> np.ndarray:
+        """Per-tile P(damaged): D4 TTA (8 orientations) + temperature scaling."""
+        X = torch.stack([norm(c) for c in chips])
+        acc = torch.zeros(len(X), 2)
+        with torch.no_grad():
+            if CONDITION_TTA:
+                for k in range(4):
+                    rot = torch.rot90(X, k, dims=[2, 3])
+                    for do_flip in (False, True):
+                        v = torch.flip(rot, dims=[3]) if do_flip else rot
+                        acc += F.softmax(model(v) / temp, 1)
+                acc /= 8.0
+            else:
+                acc = F.softmax(model(X) / temp, 1)
+        return acc[:, 1].numpy()
+
+    from PIL import Image
+
     geoms = gdf.to_crs("EPSG:3857").geometry
     scores, tarps = [], []
     for geom in geoms:
-        minx, miny, maxx, maxy = geom.bounds
-        r0, c0 = rowcol(transform, minx, maxy)
-        r1, c1 = rowcol(transform, maxx, miny)
-        r0, r1 = max(0, min(r0, r1)), min(H, max(r0, r1))
-        c0, c1 = max(0, min(c0, c1)), min(W, max(c0, c1))
-        if r1 - r0 < 8 or c1 - c0 < 8:
+        tiles = roof_tiles(arr, transform, geom)  # fixed-GSD, polygon-masked
+        if not tiles:
             scores.append(None)
             tarps.append(0.0)
             continue
-        patch = arr[r0:r1, c0:c1]
-        tarps.append(tarp_fraction(patch.reshape(-1, 3)))
-        chip = Image.fromarray(patch).resize((CHIP_PX, CHIP_PX))
-        with torch.no_grad():
-            p = torch.softmax(model(norm(chip).unsqueeze(0)), 1)[0, 1].item()
-        scores.append(round(p, 3))
+        roof_px = masked_roof_pixels(tiles)
+        tarps.append(tarp_fraction(roof_px))
+        p = tile_p([Image.fromarray(t) for t in tiles])
+        scores.append(round(float(p.mean()), 3))  # aggregate tiles -> building score
 
     gdf["roof_damage_score"] = scores
     gdf["tarp_fraction"] = tarps

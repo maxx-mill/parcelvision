@@ -1,4 +1,5 @@
 import numpy as np
+
 from worker.pipeline.condition import flag, tarp_fraction
 
 
@@ -25,9 +26,10 @@ def test_flag_tarp_wins():
 
 
 def test_flag_damaged_review_ok_by_score():
+    # thresholds: DAMAGED >= 0.60, REVIEW >= 0.50 (calibrated to v5 scores)
     assert flag(0.8, 0.0) == "damaged"
-    assert flag(0.45, 0.0) == "review"
-    assert flag(0.1, 0.0) == "ok"
+    assert flag(0.55, 0.0) == "review"
+    assert flag(0.45, 0.0) == "ok"
 
 
 def test_flag_no_score_is_ok():
