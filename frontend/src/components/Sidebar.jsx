@@ -40,7 +40,7 @@ function StageList({ status }) {
   );
 }
 
-function ParcelSearch({ onSearch, results, onPick, parcel }) {
+function ParcelSearch({ onSearch, results, searching, onPick, parcel }) {
   const [q, setQ] = useState("");
   const submit = (e) => {
     e.preventDefault();
@@ -54,12 +54,13 @@ function ParcelSearch({ onSearch, results, onPick, parcel }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search address, e.g. 10946 Brookings"
+          aria-label="Search parcels by address"
         />
-        <button className="btn small" type="submit" disabled={q.trim().length < 3}>
-          Search
+        <button className="btn small" type="submit" disabled={q.trim().length < 3 || searching}>
+          {searching ? <span className="spinner" aria-hidden="true" /> : "Search"}
         </button>
       </form>
-      {results && (
+      {results && !searching && (
         <ul className="parcel-results">
           {results.length === 0 && <li className="muted">No parcels found.</li>}
           {results.map((p) => (
@@ -245,6 +246,7 @@ export default function Sidebar({
   validation,
   onParcelSearch,
   parcelResults,
+  searching,
   onPickParcel,
   parcel,
   report,
@@ -265,7 +267,13 @@ export default function Sidebar({
         </p>
       </header>
 
-      <ParcelSearch onSearch={onParcelSearch} results={parcelResults} onPick={onPickParcel} parcel={parcel} />
+      <ParcelSearch
+        onSearch={onParcelSearch}
+        results={parcelResults}
+        searching={searching}
+        onPick={onPickParcel}
+        parcel={parcel}
+      />
 
       <section>
         <h2>1 · Area of interest</h2>
@@ -280,7 +288,7 @@ export default function Sidebar({
         )}
       </section>
 
-      <section>
+      <section aria-live="polite">
         <h2>2 · {parcel ? "Analyze parcel" : "Extract"}</h2>
         <button className="btn primary" onClick={onExtract} disabled={!aoi || running}>
           {running ? "Working…" : parcel ? "Analyze this parcel" : "Extract buildings"}
@@ -292,7 +300,7 @@ export default function Sidebar({
         )}
         {job && <StageList status={job.status} />}
         {job?.status === "failed" && <p className="error">{job.error}</p>}
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error" role="alert">{error}</p>}
       </section>
 
       <section>

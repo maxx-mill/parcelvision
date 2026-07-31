@@ -49,6 +49,31 @@ function bboxToPolygon([minx, miny, maxx, maxy]) {
   };
 }
 
+// On-map legend for footprint colours — condition when the classifier ran,
+// else a single "detected building" swatch. Mirrors the paint match below.
+function MapLegend({ buildings }) {
+  const feats = buildings?.features;
+  if (!feats?.length) return null;
+  const hasCondition = feats.some((f) => f.properties?.condition);
+  return (
+    <div className="map-legend" aria-hidden="true">
+      <p className="legend-title">Footprints</p>
+      <ul>
+        {hasCondition ? (
+          <>
+            <li><span className="sw" style={{ background: "#22d3ee" }} /> intact roof</li>
+            <li><span className="sw" style={{ background: "#f59e0b" }} /> review</li>
+            <li><span className="sw" style={{ background: "#dc2626" }} /> likely damage</li>
+            <li><span className="sw" style={{ background: "#a855f7" }} /> tarp</li>
+          </>
+        ) : (
+          <li><span className="sw" style={{ background: "#22d3ee" }} /> detected building</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 // Parcel fill by validation flag: red = no detected structure (the headline
 // finding), amber = more than one detection, faint green = a clean 1:1 match.
 const PARCEL_FILL = [
@@ -304,5 +329,10 @@ export default function MapView({
     };
   }, [drawMode, onBBoxDrawn]);
 
-  return <div ref={containerRef} className="map" />;
+  return (
+    <div className="map-wrap">
+      <div ref={containerRef} className="map" />
+      <MapLegend buildings={buildings} />
+    </div>
+  );
 }

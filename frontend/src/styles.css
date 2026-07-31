@@ -15,7 +15,8 @@
 html, body, #root { height: 100%; margin: 0; }
 
 .app { display: flex; height: 100%; }
-.map { flex: 1; }
+.map-wrap { flex: 1; position: relative; min-width: 0; }
+.map { position: absolute; inset: 0; }
 
 .sidebar {
   width: 340px;
@@ -206,9 +207,67 @@ footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 }
 .report-stats b { display: block; font-size: 16px; color: var(--text); }
 .report-stats .worst-tarp b { color: #f43f5e; }
+.report-stats .worst-damaged b { color: #dc2626; }
 .report-stats .worst-review b { color: #f59e0b; }
 .report-stats .worst-ok b { color: #22d3ee; }
 .report .warn { color: #f59e0b; font-size: 12px; margin: 10px 0 0; }
 .structure-list { list-style: none; padding: 0; margin: 10px 0; max-height: 160px; overflow-y: auto; font-size: 12.5px; }
 .structure-list li { padding: 3px 0; }
 .structure-list .cond { margin-right: 6px; }
+
+/* Keyboard focus: a visible ring on every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.btn:focus-visible, .parcelrow:focus-visible, .jobrow:focus-visible { outline-offset: 1px; }
+
+/* On-map legend for the footprint / condition colours. */
+.map-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 26px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 11.5px;
+  color: var(--text);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  max-width: 200px;
+}
+.map-legend .legend-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); margin: 0 0 6px;
+}
+.map-legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.map-legend li { display: flex; align-items: center; gap: 7px; }
+.map-legend .sw { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; opacity: 0.85; }
+.map-legend .sw.line { height: 0; border-radius: 0; border-top: 2px dashed var(--amber); background: none !important; }
+
+/* Inline loading spinner (parcel search, etc.). */
+.spinner {
+  display: inline-block; width: 13px; height: 13px; vertical-align: -2px;
+  border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .stages li.active .dot, .spinner { animation: none; }
+  * { scroll-behavior: auto; }
+}
+
+/* Narrow screens: stack the sidebar above the map instead of a fixed column. */
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  .sidebar {
+    width: 100%; min-width: 0; max-height: 52vh;
+    border-right: none; border-bottom: 1px solid var(--line);
+  }
+  .map-wrap { min-height: 48vh; }
+  .map-legend { bottom: 12px; }
+}

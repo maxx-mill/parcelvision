@@ -65,3 +65,25 @@ def test_geographic_input_reprojected_not_trusted_for_area():
     gdf_4326 = gdf_utm.to_crs(4326)
     out = postprocess(gdf_4326, BBOX)
     assert out.iloc[0]["area_sqm"] == pytest.approx(200, rel=0.1)
+
+
+def test_duplicate_overlapping_detections_deduped():
+    # Same building detected twice, offset 2 m -> high IoU -> one survivor.
+    x, y = center_utm()
+    out = postprocess(make_gdf([utm_box(x, y, 20, 10), utm_box(x + 2, y, 20, 10)]), BBOX)
+    assert len(out) == 1
+
+
+def test_nested_blob_inside_building_deduped():
+    # A small blob sitting inside a real building: low IoU, high containment.
+    x, y = center_utm()
+    out = postprocess(make_gdf([utm_box(x, y, 30, 30), utm_box(x, y, 8, 8)]), BBOX)
+    assert len(out) == 1
+    assert out.iloc[0]["area_sqm"] == pytest.approx(900, rel=0.1)  # the big one kept
+
+
+def test_adjacent_rowhouses_not_merged():
+    # Touching but non-overlapping footprints (party wall) must both survive.
+    x, y = center_utm()
+    out = postprocess(make_gdf([utm_box(x, y, 20, 10), utm_box(x + 20, y, 20, 10)]), BBOX)
+    assert len(out) == 2

@@ -19,6 +19,15 @@ def inference_backend() -> str:
     return os.environ.get("INFERENCE_BACKEND", "local_cpu")
 
 
+def detection_confidence() -> float:
+    """Minimum detector score to keep a footprint. Higher = fewer false
+    positives, lower recall. Tuned to 0.3 on leaf-off residential parcels."""
+    try:
+        return float(os.environ.get("DETECTION_CONFIDENCE", "0.3"))
+    except ValueError:
+        return 0.3
+
+
 def naip_year() -> int | None:
     raw = os.environ.get("NAIP_YEAR", "").strip()
     return int(raw) if raw else None

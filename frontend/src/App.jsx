@@ -20,6 +20,7 @@ export default function App() {
   const [recentJobs, setRecentJobs] = useState([]);
   // Chapter 7 — parcel-first workflow
   const [parcelResults, setParcelResults] = useState(null);
+  const [searching, setSearching] = useState(false);
   const [parcel, setParcel] = useState(null); // { locator, address, bbox, geometry }
   const [report, setReport] = useState(null);
   const { job, buildings, error, submit, watch, cancel, reset } = useJob();
@@ -44,11 +45,14 @@ export default function App() {
 
   const onParcelSearch = useCallback(async (q) => {
     setDemoError(null);
+    setSearching(true);
     try {
       const { parcels } = await searchParcels(q);
       setParcelResults(parcels);
     } catch (e) {
       setDemoError(e.message);
+    } finally {
+      setSearching(false);
     }
   }, []);
 
@@ -125,6 +129,7 @@ export default function App() {
         validation={validation}
         onParcelSearch={onParcelSearch}
         parcelResults={parcelResults}
+        searching={searching}
         onPickParcel={onPickParcel}
         parcel={parcel}
         report={report}

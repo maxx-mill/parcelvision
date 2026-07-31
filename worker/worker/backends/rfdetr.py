@@ -19,8 +19,13 @@ import numpy as np
 HF_REPO = "merve/rf-detr-seg-satellite-buildings"
 WINDOW = 640
 OVERLAP = 128
-CONF_THRESHOLD = 0.3
 NMS_IOU = 0.5
+
+
+def _conf_threshold() -> float:
+    from .. import config
+
+    return config.detection_confidence()
 
 
 class RFDetrBackend:
@@ -51,13 +56,14 @@ class RFDetrBackend:
 
         proc = AutoImageProcessor.from_pretrained(HF_REPO)
         model = RfDetrForInstanceSegmentation.from_pretrained(HF_REPO).to(self.device).eval()
+        threshold = _conf_threshold()
 
         def predict(rgb, tf):
             inputs = proc(images=Image.fromarray(rgb), return_tensors="pt").to(self.device)
             with torch.no_grad():
                 outputs = model(**inputs)
             res = proc.post_process_instance_segmentation(
-                outputs, threshold=CONF_THRESHOLD, target_sizes=[rgb.shape[:2]]
+                outputs, threshold=threshold, target_sizes=[rgb.shape[:2]]
             )[0]
             seg = res["segmentation"].cpu().numpy()
             polys, scores = [], []
