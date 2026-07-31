@@ -1,0 +1,13 @@
+# Keep the build context small. NOTE: worker/worker/models/*.pt is the shipped
+# roof-condition model and MUST stay in the image — do not ignore it.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+*.log

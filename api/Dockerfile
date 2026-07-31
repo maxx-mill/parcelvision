@@ -18,5 +18,10 @@ COPY alembic ./alembic
 COPY scripts ./scripts
 COPY tests ./tests
 
+# Run as an unprivileged user. /tmp (export scratch) stays writable; /seed is
+# mounted read-only and /app is read-only at runtime.
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser /app
+USER appuser
+
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

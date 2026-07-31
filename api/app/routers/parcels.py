@@ -51,6 +51,27 @@ FROM jb WHERE ST_Contains((SELECT geom FROM p), jb.pt)
 """
 
 
+# Condition severity mirrors the classifier's flag(): tarp > damaged > review > ok.
+# "damaged" was added with the v5 model; leaving it out here made a collapsed
+# roof report "ok" as the worst condition.
+_SEVERITY = ("tarp", "damaged", "review", "ok")
+
+
+def summarize_structures(structures: list[dict]) -> dict:
+    """Roll a parcel's structures into count/area/condition summary fields."""
+    cond_counts = {c: 0 for c in ("ok", "review", "damaged", "tarp")}
+    for st in structures:
+        key = st.get("condition") or "ok"
+        cond_counts[key] = cond_counts.get(key, 0) + 1
+    worst = next((c for c in _SEVERITY if cond_counts.get(c)), "ok")
+    return {
+        "structure_count": len(structures),
+        "total_building_area_sqm": round(sum(st.get("area_sqm") or 0 for st in structures), 1),
+        "condition_counts": cond_counts,
+        "worst_condition": worst,
+    }
+
+
 @router.get("/jobs/{job_id}/report")
 def property_report(
     job_id: uuid.UUID, locator: str, session: Session = Depends(get_session)
@@ -76,20 +97,12 @@ def property_report(
         }
         for r in rows
     ]
-    cond_counts = {"ok": 0, "review": 0, "tarp": 0}
-    for st in structures:
-        cond_counts[st["condition"] or "ok"] = cond_counts.get(st["condition"] or "ok", 0) + 1
-    total_area = round(sum(st["area_sqm"] or 0 for st in structures), 1)
-    worst = "tarp" if cond_counts["tarp"] else "review" if cond_counts["review"] else "ok"
 
     return {
         "parcel": {"locator": parcel.locator, "address": parcel.address},
         "structures": structures,
         "summary": {
-            "structure_count": len(structures),
-            "total_building_area_sqm": total_area,
-            "condition_counts": cond_counts,
-            "worst_condition": worst,
+            **summarize_structures(structures),
             "any_crossing": any(st["crosses_boundary"] for st in structures),
         },
     }

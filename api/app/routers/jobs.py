@@ -10,12 +10,13 @@ from ..config import Settings, get_settings
 from ..db import get_session
 from ..models import TERMINAL_STATUSES, Building, Job
 from ..queue import cancel_extraction, enqueue_extraction
+from ..ratelimit import rate_limit_jobs
 from ..schemas import JobCreate, JobOut, bbox_area_km2
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-@router.post("", response_model=JobOut, status_code=201)
+@router.post("", response_model=JobOut, status_code=201, dependencies=[Depends(rate_limit_jobs)])
 def create_job(
     payload: JobCreate,
     session: Session = Depends(get_session),

@@ -1,0 +1,8 @@
+# node_modules is reinstalled inside the image; never ship the host copy.
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+*.log
+.env
+.env.*
